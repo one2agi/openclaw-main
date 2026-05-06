@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自托管 Manus 对标工具竞品扫描 | 墨灵研究</title>
+  <style>
+    :root {
+      --bg: #0f0f1a;
+      --surface: #161625;
+      --surface2: #1e1e30;
+      --border: #2a2a45;
+      --text: #e0e0f0;
+      --text-muted: #8888aa;
+      --accent: #7c5af0;
+      --accent2: #f05a7c;
+      --accent3: #5af0c0;
+      --accent4: #f0c05a;
+      --green: #5af07c;
+      --yellow: #f0d85a;
+      --red: #f05a7c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 3rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 3rem;
+    }
+    .header .tag {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, #a78bf5 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.75rem;
+    }
+    .header .meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .header .meta span { margin: 0 0.5rem; }
+
+    /* Conclusion Box */
+    .conclusion {
+      background: linear-gradient(135deg, #1a1035 0%, #0f1a2e 100%);
+      border: 1px solid var(--accent);
+      border-radius: 1rem;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .conclusion::before {
+      content: '⚡';
+      position: absolute;
+      top: 1rem;
+      right: 1.5rem;
+      font-size: 2rem;
+      opacity: 0.3;
+    }
+    .conclusion .label {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .conclusion p {
+      font-size: 1.05rem;
+      color: #d0c8ff;
+    }
+
+    /* Confidence badge */
+    .confidence {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      margin-bottom: 2rem;
+    }
+    .confidence .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* Section titles */
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 1.1em;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* Cards */
+    .cards {
+      display: grid;
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .card-header .rank {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .card-header .rank.gold { background: linear-gradient(135deg, #f0c05a, #f05a7c); }
+    .card-header .rank.silver { background: linear-gradient(135deg, #aaa, #888); }
+    .card-header .rank.bronze { background: linear-gradient(135deg, #c87, #a55); }
+    .card-body { padding: 1.25rem 1.5rem; }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .card-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    .card-link {
+      display: inline-block;
+      font-size: 0.78rem;
+      color: var(--accent);
+      text-decoration: none;
+      background: rgba(124, 90, 240, 0.1);
+      padding: 0.2rem 0.6rem;
+      border-radius: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .card-link:hover { background: rgba(124, 90, 240, 0.2); }
+    .card-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .tag-chip {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .tag-chip.pro { background: rgba(90, 240, 192, 0.15); color: var(--accent3); border: 1px solid rgba(90, 240, 192, 0.3); }
+    .tag-chip.con { background: rgba(240, 90, 124, 0.15); color: var(--accent2); border: 1px solid rgba(240, 90, 124, 0.3); }
+    .tag-chip.neutral { background: rgba(136, 136, 170, 0.15); color: var(--text-muted); border: 1px solid rgba(136, 136, 170, 0.3); }
+    .card-maturity {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .stars { color: var(--accent4); letter-spacing: -1px; }
+
+    /* Matrix Table */
+    .matrix-wrap {
+      overflow-x: auto;
+      margin-bottom: 2.5rem;
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+    }
+    table.matrix {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      min-width: 700px;
+    }
+    table.matrix th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 0.75rem 0.8rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    table.matrix th:first-child { text-align: left; }
+    table.matrix td {
+      padding: 0.65rem 0.8rem;
+      border-bottom: 1px solid rgba(42,42,69,0.5);
+      text-align: center;
+      vertical-align: middle;
+    }
+    table.matrix tr:last-child td { border-bottom: none; }
+    table.matrix tr:hover td { background: rgba(124,90,240,0.05); }
+    table.matrix td:first-child { 
+      text-align: left; 
+      font-weight: 600; 
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .cell-yes { color: var(--green); font-weight: 700; }
+    .cell-no { color: var(--text-muted); }
+    .cell-partial { color: var(--accent4); font-size: 0.75rem; }
+
+    /* Limitations */
+    .limitations {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .limitations ul {
+      list-style: none;
+      display: grid;
+      gap: 0.6rem;
+    }
+    .limitations li {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      padding-left: 1.5rem;
+      position: relative;
+    }
+    .limitations li::before {
+      content: '⚠';
+      position: absolute;
+      left: 0;
+      color: var(--accent4);
+    }
+
+    /* Sources */
+    .sources {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+    }
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .source-item {
+      background: var(--surface2);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.78rem;
+    }
+    .source-item .name { color: var(--text); font-weight: 600; }
+    .source-item .type { color: var(--text-muted); }
+    .source-item .cred { color: var(--accent3); font-weight: 700; }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 2rem 0;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+
+    /* Comparison summary */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+    .compare-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .compare-card .emoji { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .compare-card .name { font-weight: 700; margin-bottom: 0.25rem; }
+    .compare-card .best-for { font-size: 0.78rem; color: var(--text-muted); }
+    @media (max-width: 768px) {
+      .comparison-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="tag">🔬 Deep Research</div>
+      <h1>自托管 LLM API 的 Manus 对标工具竞品扫描</h1>
+      <div class="meta">
+        <span>🕐 2026-05-05</span>
+        <span>•</span>
+        <span>🔍 墨灵 MoLing</span>
+        <span>•</span>
+        <span>覆盖 2025–2026 年数据</span>
+      </div>
+    </div>
+
+    <!-- Conclusion -->
+    <div class="conclusion">
+      <div class="label">⚡ 一句话结论</div>
+      <p>目前最接近 Manus 且支持自托管 + 自定义 LLM API 的方案是 <strong>OpenClaw</strong>（综合成熟度最高）、<strong>OpenManus + Stagehand</strong>（架构最接近，适合开发者）、以及 <strong>n8n</strong>（生产工作流集成最强）。完全本地运行强调隐私可选 <strong>AgenticSeek</strong>。</p>
+    </div>
+
+    <!-- Confidence -->
+    <div class="confidence">
+      <span class="dot"></span>
+      <span>置信度：高</span>
+      <span style="color:var(--text-muted); margin-left:0.5rem;">多源交叉验证，来源权威，数据时效 2025–2026</span>
+    </div>
+
+    <!-- Three recommendations -->
+    <div class="comparison-grid">
+      <div class="compare-card">
+        <div class="emoji">🥇</div>
+        <div class="name">OpenClaw</div>
+        <div class="best-for">自托管 + 自定义 LLM + 消息集成最成熟</div>
+      </div>
+      <div class="compare-card">
+        <div class="emoji">🥈</div>
+        <div class="name">OpenManus + Stagehand</div>
+        <div class="best-for">开发者复现 Manus 多 Agent 架构</div>
+      </div>
+      <div class="compare-card">
+        <div class="emoji">🥉</div>
+        <div class="name">n8n AI Agent</div>
+        <div class="best-for">企业工作流 + AI Agent 集成</div>
+      </div>
+    </div>
+
+    <!-- Capability Matrix -->
+    <div class="section-title">核心能力矩阵</div>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>工具</th>
+            <th>浏览器自动化</th>
+            <th>多 Agent</th>
+            <th>工作流编排</th>
+            <th>沙箱执行</th>
+            <th>持久记忆</th>
+            <th>自定义 LLM</th>
+            <th>自托管</th>
+            <th>成熟度</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>OpenClaw</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">⭐⭐⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td>OpenManus</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td>AgenticSeek</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td>n8n</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">⭐⭐⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td>Dify</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">⭐⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td>NanoClaw</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td>AutoGen (MS)</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-partial">可配置</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">⭐⭐⭐⭐</td>
+          </tr>
+          <tr>
+            <td>CrewAI</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-partial">⚠️</td>
+            <td class="cell-partial">可配置</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">✅</td>
+            <td class="cell-yes">⭐⭐⭐⭐</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Detailed Top 3 Recommendations -->
+    <div class="section-title">推荐工具详解</div>
+    <div class="cards">
+
+      <!-- OpenClaw -->
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div class="rank gold">1</div>
+            <div>
+              <div class="card-title">OpenClaw</div>
+              <div class="card-subtitle">最接近 Manus 的综合自托管方案</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <a class="card-link" href="https://github.com/openclaw/openclaw" target="_blank">github.com/openclaw/openclaw</a>
+          <div class="card-desc">MIT 许可证，361K GitHub stars，最成熟的自托管开源 Agent 平台。支持任意 LLM（Claude/GPT/Gemini/Ollama）、Telegram/Discord/Slack/WhatsApp/iMessage 原生集成、HEARTBEAT 定时任务驱动、Skills + ClawHub 生态（10,700+ 社区 skills）。</div>
+          <div class="card-tags">
+            <span class="tag-chip pro">✅ 消息集成最全</span>
+            <span class="tag-chip pro">✅ 10,700+ Skills 生态</span>
+            <span class="tag-chip pro">✅ 完全自托管</span>
+            <span class="tag-chip pro">✅ HEARTBEAT 24/7</span>
+            <span class="tag-chip con">⚠ 需学习 SOUL.md 系统</span>
+          </div>
+          <div class="card-maturity">
+            <span class="stars">★★★★★</span>
+            <span>成熟度 | MIT 免费 | 估算月成本 $45（API+服务器）</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- OpenManus -->
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div class="rank silver">2</div>
+            <div>
+              <div class="card-title">OpenManus (+ Stagehand)</div>
+              <div class="card-subtitle">开发者复现 Manus 架构的首选</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <a class="card-link" href="https://github.com/ManuALLM/OpenManus" target="_blank">github.com/ManuALLM/OpenManus</a>
+          <div class="card-desc">层级化 Agent 架构（BaseAgent→ReActAgent→ToolCallAgent→Manus），Playwright 浏览器自动化 + 沙箱 Python/Node.js 执行。完全开源可深度定制。搭配 Stagehand 可解决 DOM 解析和元素点击的稳定性问题。</div>
+          <div class="card-tags">
+            <span class="tag-chip pro">✅ 层级化多 Agent 架构</span>
+            <span class="tag-chip pro">✅ Playwright 浏览器控制</span>
+            <span class="tag-chip pro">✅ 完全开源可定制</span>
+            <span class="tag-chip con">⚠ 调试困难，文档不完整</span>
+            <span class="tag-chip con">⚠ 80%代码用于工作流编排</span>
+            <span class="tag-chip neutral">ℹ DeepWisdom 已 rebranding 到 Atoms</span>
+          </div>
+          <div class="card-maturity">
+            <span class="stars">★★★</span>
+            <span>成熟度 | 完全免费（开源）</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- n8n -->
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div class="rank bronze">3</div>
+            <div>
+              <div class="card-title">n8n（AI Agent 节点）</div>
+              <div class="card-subtitle">企业级工作流自动化 + AI Agent 集成</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <a class="card-link" href="https://n8n.io" target="_blank">n8n.io</a>
+          <div class="card-desc">视觉化工作流自动化平台，400+ 预建集成（Slack、Telegram、Postgres、GitHub、Notion 等），LangChain 驱动的 AI Agent 节点，支持工具调用和多步推理。Docker 一键自托管，数据完全自主。</div>
+          <div class="card-tags">
+            <span class="tag-chip pro">✅ 400+ 集成生态</span>
+            <span class="tag-chip pro">✅ LangChain AI Agent</span>
+            <span class="tag-chip pro">✅ Docker 一键部署</span>
+            <span class="tag-chip pro">✅ 完全数据自主</span>
+            <span class="tag-chip con">⚠ 需预先设计工作流</span>
+            <span class="tag-chip con">⚠ 非"一句话完成"模式</span>
+          </div>
+          <div class="card-maturity">
+            <span class="stars">★★★★★</span>
+            <span>成熟度 | 免费自托管 | Fair-code 许可证</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Other notable tools -->
+    <div class="section-title">其他值得关注的工具</div>
+    <div class="cards">
+
+      <div class="card">
+        <div class="card-body" style="padding:1rem 1.5rem;">
+          <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:1rem;">
+            <div>
+              <div style="font-weight:700; margin-bottom:0.25rem;">Dify</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">LLMOps 平台 + 可视化 Agent 构建 | 119K GitHub stars | Apache 2.0</div>
+              <div style="font-size:0.78rem;">内置 RAG、多模型切换、Backend-as-a-Service。适合构建生产级 AI 应用，工作流导向，非端到端自主 Agent。</div>
+            </div>
+            <div>
+              <div style="font-weight:700; margin-bottom:0.25rem;">AgenticSeek</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">完全本地化的 Manus 替代 | GitHub: sumanthd17/agenticseek</div>
+              <div style="font-size:0.78rem;">零云依赖，隐私最强。支持 Web 浏览、代码执行、任务规划、Ollama 集成。适合 GPU 有余量的隐私 maximalists。</div>
+            </div>
+            <div>
+              <div style="font-weight:700; margin-bottom:0.25rem;">AutoGen (Microsoft)</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">企业级多 Agent 编排框架 | MIT 许可证</div>
+              <div style="font-size:0.78rem;">多 Agent 协作、代码执行、人在回路支持。是框架非产品，需要工程开发才能成为可用 Agent。</div>
+            </div>
+            <div>
+              <div style="font-weight:700; margin-bottom:0.25rem;">NanoClaw</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.5rem;">OpenClaw 精简安全版 | 27.6K GitHub stars</div>
+              <div style="font-size:0.78rem;">15 个源文件 ~3,900 行代码，OS 级容器隔离，Agent Swarms。适合安全敏感、代码可审计需求的开发者。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Limitations -->
+    <div class="section-title">⚠️ 局限性</div>
+    <div class="limitations">
+      <ul>
+        <li>部分项目（NanoClaw、AgenticSeek）仍处于活跃开发期，功能和文档可能存在滞后</li>
+        <li>OpenManus 原版可能不再是活跃方向（DeepWisdom 已 rebranding 到 Atoms）</li>
+        <li>除 NanoClaw 外，大多数方案的代码执行隔离能力不如 Manus 的云端沙箱成熟</li>
+        <li>2025 年 WebArena 基准：单 Agent 最佳完成率 61.7%（人类基准 78%），复杂长周期记忆任务仍是行业瓶颈</li>
+      </ul>
+    </div>
+
+    <!-- Sources -->
+    <div class="section-title">📚 信息来源</div>
+    <div class="sources">
+      <div class="sources-grid">
+        <div class="source-item"><span class="name">AIMultiple</span> — <span class="cred">⭐⭐⭐⭐⭐</span> <span class="type">权威行业分析</span></div>
+        <div class="source-item"><span class="name">DEV Community</span> — <span class="cred">⭐⭐⭐⭐⭐</span> <span class="type">开发者深度文章</span></div>
+        <div class="source-item"><span class="name">XDA Developers</span> — <span class="cred">⭐⭐⭐⭐⭐</span> <span class="type">科技媒体实测</span></div>
+        <div class="source-item"><span class="name">Blink / Vellum</span> — <span class="cred">⭐⭐⭐⭐</span> <span class="type">比较分析</span></div>
+        <div class="source-item"><span class="name">n8n 官方博客</span> — <span class="cred">⭐⭐⭐⭐⭐</span> <span class="type">一手官方</span></div>
+        <div class="source-item"><span class="name">arXiv (学术预印本)</span> — <span class="cred">⭐⭐⭐⭐</span> <span class="type">学术来源</span></div>
+        <div class="source-item"><span class="name">Reddit r/LocalLLaMA</span> — <span class="cred">⭐⭐⭐</span> <span class="type">社区实测</span></div>
+        <div class="source-item"><span class="name">jimmysong.io</span> — <span class="cred">⭐⭐⭐⭐</span> <span class="type">技术博客</span></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      🔬 墨灵深度研究 | 数据截至 2026-05-05 | Tavily Search API
+    </div>
+
+  </div>
+</body>
+</html>

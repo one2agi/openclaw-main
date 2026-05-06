@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Environment (contains secrets)
+.env
+
+# Sessions (per-session conversation logs)
+../agents/*/sessions/
+sessions/
+
+# Credentials & identity
+../credentials/
+../identity/
+
+# Binary databases
+*.sqlite
+*.lance
+memories.lance
+
+# NPM cache
+../npm/
+npm/
+
+# System files
+.DS_Store
+*.tmp
+*.bak

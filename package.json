@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "memory-lancedb-pro": "^1.1.0-beta.9"
+  }
+}

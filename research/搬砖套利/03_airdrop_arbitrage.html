@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空投套利与打新搬砖 | 深度研究报告 2026</title>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --text-primary: #e8edf5;
+            --text-secondary: #8892a4;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --accent-yellow: #eab308;
+            --accent-green: #22c55e;
+            --accent-blue: #3b82f6;
+            --accent-purple: #a855f7;
+            --border: #2a3548;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 60px 24px 40px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(59,130,246,0.08) 0%, transparent 100%);
+        }
+        .hero .tag {
+            display: inline-block;
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: var(--accent-red);
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+        .hero h1 {
+            font-size: 2.4em;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, #8892a4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1em;
+            max-width: 600px;
+            margin: 0 auto 32px;
+        }
+        .hero .meta {
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .hero .meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* Summary Bar */
+        .summary-bar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 24px;
+            display: flex;
+            gap: 24px;
+            overflow-x: auto;
+        }
+        .summary-item {
+            flex-shrink: 0;
+        }
+        .summary-item .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .summary-item .value { font-size: 15px; font-weight: 700; margin-top: 2px; }
+        .summary-item .value.red { color: var(--accent-red); }
+        .summary-item .value.orange { color: var(--accent-orange); }
+        .summary-item .value.green { color: var(--accent-green); }
+        .summary-item .value.blue { color: var(--accent-blue); }
+
+        /* Container */
+        .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+        /* Section */
+        .section { margin-bottom: 48px; }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-header h2 { font-size: 1.4em; font-weight: 700; }
+        .section-header .icon { font-size: 1.5em; }
+
+        /* Tier Table */
+        .tier-block { margin-bottom: 32px; }
+        .tier-label {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .tier-label.s { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+        .tier-label.a { background: rgba(249,115,22,0.2); color: var(--accent-orange); }
+        .tier-label.b { background: rgba(234,179,8,0.2); color: var(--accent-yellow); }
+
+        .project-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .project-table th {
+            text-align: left;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+        .project-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(42,53,72,0.5);
+            vertical-align: top;
+        }
+        .project-table tr:last-child td { border-bottom: none; }
+        .project-table tr:hover { background: rgba(255,255,255,0.02); }
+        .project-table .token { font-weight: 700; color: var(--accent-blue); }
+        .project-table .confirmed { 
+            display: inline-block;
+            background: rgba(34,197,94,0.15);
+            color: var(--accent-green);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .project-table .unconfirmed {
+            display: inline-block;
+            background: rgba(249,115,22,0.15);
+            color: var(--accent-orange);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h3 {
+            font-size: 1em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--accent-blue);
+        }
+        .card ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .card li { font-size: 13px; color: var(--text-secondary); padding-left: 16px; position: relative; }
+        .card li::before { content: '→'; position: absolute; left: 0; color: var(--accent-blue); }
+
+        /* Warning box */
+        .warning-box {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin: 24px 0;
+        }
+        .warning-box h4 { color: var(--accent-red); margin-bottom: 12px; font-size: 1em; display: flex; align-items: center; gap: 8px; }
+        .warning-box ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .warning-box li { font-size: 14px; color: var(--text-secondary); }
+
+        /* Info box */
+        .info-box {
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin: 24px 0;
+        }
+        .info-box h4 { color: var(--accent-blue); margin-bottom: 12px; font-size: 1em; }
+        .info-box p { font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
+
+        /* Flow chart */
+        .flow-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .flow-step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 18px;
+            flex: 1;
+            min-width: 200px;
+        }
+        .flow-step .step-num {
+            display: inline-block;
+            background: var(--accent-purple);
+            color: #fff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .flow-step h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+        .flow-step p { font-size: 12px; color: var(--text-secondary); }
+
+        /* Source table */
+        .source-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .source-table th, .source-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+        .source-table th { background: var(--bg-card); color: var(--text-secondary); font-weight: 600; }
+        .source-table .stars { color: var(--accent-yellow); letter-spacing: 2px; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 1.8em; }
+            .summary-bar { gap: 16px; }
+            .project-table { font-size: 12px; }
+            .project-table th, .project-table td { padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="tag">🔬 DEEP RESEARCH</div>
+    <h1>空投套利与打新搬砖</h1>
+    <p class="subtitle">2025-2026年高价值空投机会、撸毛策略、收益案例与风险全解析</p>
+    <div class="meta">
+        <span>📅 2026年5月</span>
+        <span>⏱️ 更新于今日</span>
+        <span>🔍 12+ 数据源</span>
+    </div>
+</div>
+
+<div class="summary-bar">
+    <div class="summary-item">
+        <div class="label">置信度</div>
+        <div class="value green">高</div>
+    </div>
+    <div class="summary-item">
+        <div class="label">S级机会</div>
+        <div class="value red">4个</div>
+    </div>
+    <div class="summary-item">
+        <div class="label">最高倍率</div>
+        <div class="value blue">70x (Ethena)</div>
+    </div>
+    <div class="summary-item">
+        <div class="label">最热赛道</div>
+        <div class="value orange">Perp DEX</div>
+    </div>
+    <div class="summary-item">
+        <div class="label">最大风险</div>
+        <div class="value red">女巫审查</div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- 一句话结论 -->
+    <div class="info-box" style="margin-top:0; margin-bottom:40px;">
+        <h4>⚡ 一句话结论</h4>
+        <p>2026年空投机会集中在<strong>永续DEX（股权Perp）</strong>、<strong>预测市场</strong>、<strong>隐私链</strong>三类协议，多账号撸毛仍是核心策略，但女巫审查日趋严格。Hyperliquid $HYPE 和 Polymarket $POLY 是当前最确定的高价值机会。</p>
+    </div>
+
+    <!-- 一、高价值空投机会 -->
+    <div class="section">
+        <div class="section-header">
+            <span class="icon">🏆</span>
+            <h2>高价值空投机会（2026年度分级）</h2>
+        </div>
+
+        <div class="tier-block">
+            <span class="tier-label s">S级 — 最值得关注</span>
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>项目</th>
+                        <th>代币</th>
+                        <th>状态</th>
+                        <th>核心逻辑</th>
+                        <th>行动要点</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Hyperliquid</strong></td>
+                        <td class="token">$HYPE</td>
+                        <td><span class="unconfirmed">52%概率2026二次空投</span></td>
+                        <td>Perp DEX领导者，HIP-3股票/商品永续超$260亿成交量</td>
+                        <td>交易HIP-3市场，用Markets前端，跨链桥接</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Polymarket</strong></td>
+                        <td class="token">$POLY</td>
+                        <td><span class="confirmed">已确认（CMO官宣）</span></td>
+                        <td>预测市场龙头，$23亿融资$90亿估值，主流采用</td>
+                        <td>做预测+提供流动性+复制交易，活跃周数是关键</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Base</strong></td>
+                        <td class="token">$BASE</td>
+                        <td><span class="unconfirmed">探索中（Arb/OP先例）</span></td>
+                        <td>Coinbase孵化，$5亿融资无VC轮，最强期待L2</td>
+                        <td>桥ETH、Aerodrome交易、.base域名、MegaPot</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Variational</strong></td>
+                        <td class="token">$VAR</td>
+                        <td><span class="confirmed">50%分配给社区</span></td>
+                        <td>500交易对，Bain Capital Crypto+Coinbase Ventures投资</td>
+                        <td>交易永续合约并推荐朋友</td>
+                    </tr>
+                    <tr>
+                        <td><strong>LayerZero</strong></td>
+                        <td class="token">$ZRO</td>
+                        <td><span class="confirmed">已发放（2025年2月）</span></td>
+                        <td>29.8%代币供应留给社区</td>
+                        <td>多链桥接使用</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tier-block">
+            <span class="tier-label a">A级 — 值得重点布局</span>
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>项目</th>
+                        <th>代币</th>
+                        <th>状态</th>
+                        <th>核心逻辑</th>
+                        <th>行动要点</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Extended</strong></td>
+                        <td class="token">$EXT</td>
+                        <td><span class="confirmed">30%代币供应</span></td>
+                        <td>Perp DEX，Q2 2026预期发币，$650万融资</td>
+                        <td>交易永续+存入XVS做抵押品</td>
+                    </tr>
+                    <tr>
+                        <td><strong>INK</strong></td>
+                        <td class="token">$INK</td>
+                        <td><span class="confirmed">已确认</span></td>
+                        <td>Kraken支持，预计2026年7-9月空投</td>
+                        <td>通过Kraken Pro/Otomate农场</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Nado</strong></td>
+                        <td>推测</td>
+                        <td><span class="confirmed">INK内部人士确认</span></td>
+                        <td>Kraken支持，Nado交易者获大部分$INK分配</td>
+                        <td>交易永续（USDC/USDT/kBTC/WETH）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Kinetiq</strong></td>
+                        <td class="token">$KNTQ</td>
+                        <td><span class="confirmed">30%给协议增长</span></td>
+                        <td>HyperEVM最强护城河，2025年11月已第一次空投25%</td>
+                        <td>Markets交易股权Perp，质押$KTQ获得加成</td>
+                    </tr>
+                    <tr>
+                        <td><strong>MegaETH</strong></td>
+                        <td class="token">$MEGA</td>
+                        <td><span class="confirmed">5%给Fluffle NFT</span></td>
+                        <td>新L1，$5000万融资，Dragonfly领投，主网已上线</td>
+                        <td>主网预存款，交互生态App（Ubitel/Prism/HitOne）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Felix</strong></td>
+                        <td class="token">$FELIX</td>
+                        <td><span class="unconfirmed">点位从2025年4月进行</span></td>
+                        <td>HyperEVM Liquity分叉，HIP-3永续+与Ondo合作股票</td>
+                        <td>借USDH交易Felix HIP-3永续</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tier-block">
+            <span class="tier-label b">B/C级 — 免费测试网机会</span>
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>项目</th>
+                        <th>代币/状态</th>
+                        <th>融资</th>
+                        <th>赛道</th>
+                        <th>行动要点</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Liquidiction</strong></td>
+                        <td>未确认</td>
+                        <td>—</td>
+                        <td>测试网预测市场</td>
+                        <td>零资金，30分钟完成</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Tings</strong></td>
+                        <td>未确认</td>
+                        <td>—</td>
+                        <td>HIP-3测试网</td>
+                        <td>交易EGGS市场+领OG Discord</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Miden</strong></td>
+                        <td><span class="confirmed">10%分配给POL持有者</span></td>
+                        <td>$2500万（a16z/1kx/Hack VC）</td>
+                        <td>隐私链</td>
+                        <td>交互测试网</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Fhenix</strong></td>
+                        <td>未确认</td>
+                        <td>$2200万</td>
+                        <td>隐私L2</td>
+                        <td>交互测试网</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Abstract</strong></td>
+                        <td>未确认（XP计划进行中）</td>
+                        <td>$1100万+（Founders Fund）</td>
+                        <td>消费L2</td>
+                        <td>桥ETH+互换+生态游戏</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ethena S6</strong></td>
+                        <td><span class="confirmed">Season 6进行中</span></td>
+                        <td>USDe峰值$148亿</td>
+                        <td>合成美元</td>
+                        <td>见下方详细农场攻略</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 二、标准操作流程 -->
+    <div class="section">
+        <div class="section-header">
+            <span class="icon">⚙️</span>
+            <h2>撸毛标准操作流程</h2>
+        </div>
+
+        <h3 style="font-size:1.1em; margin-bottom:16px; color:var(--accent-orange);">多账号策略（Sybil女巫）核心要求</h3>
+        <div class="card-grid">
+            <div class="card">
+                <h3>钱包与身份隔离</h3>
+                <ul>
+                    <li>每个账号独立私钥（不能同一seed导入）</li>
+                    <li>不同ETH地址，不同存款/交易模式</li>
+                    <li>批量操作识别：避免"批量转账"模式</li>
+                    <li>交易时间随机化，模拟真实用户行为</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>🌐 设备与网络</h3>
+                <ul>
+                    <li>独立IP + VPN + 浏览器指纹隔离</li>
+                    <li>指纹浏览器（Multilogin等）</li>
+                    <li>不同资金来源（不同交易所提币）</li>
+                    <li>避免链上地址关联</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>🛡️ 防御女巫识别</h3>
+                <ul>
+                    <li>真人审核（Discord角色）</li>
+                    <li>on-chain行为分析（频率/金额/时间）</li>
+                    <li>社交媒体关联（X账号/Farcaster）</li>
+                    <li>GitHub开发贡献记录</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="flow-steps">
+            <div class="flow-step">
+                <div class="step-num">1</div>
+                <h4>研究立项</h4>
+                <p>跟踪项目融资/团队/代码提交，预判发币可能性</p>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">2</div>
+                <h4>账号准备</h4>
+                <p>批量创建独立身份，资金隔离，指纹隔离</p>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">3</div>
+                <h4>交互执行</h4>
+                <p>链上行为+社交贡献+开发者活动，混合策略</p>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">4</div>
+                <h4>快照等待</h4>
+                <p>持续监控项目进展，等待TGE快照</p>
+            </div>
+            <div class="flow-step">
+                <div class="step-num">5</div>
+                <h4>申领卖出</h4>
+                <p>第一时间申领，评估是持还是卖</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 三、收益案例 -->
+    <div class="section">
+        <div class="section-header">
+            <span class="icon">💰</span>
+            <h2>实际收益案例</h2>
+        </div>
+        <table class="project-table">
+            <thead>
+                <tr>
+                    <th>项目</th>
+                    <th>年份</th>
+                    <th>收益范围</th>
+                    <th>操作规模</th>
+                    <th>关键成功因素</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Hyperliquid ($HYPE)</strong></td>
+                    <td>2024年</td>
+                    <td style="color:var(--accent-green); font-weight:700;">早期者持数十万$等值代币</td>
+                    <td>永续交易+生态贡献</td>
+                    <td>真实使用+长期持有</td>
+                </tr>
+                <tr>
+                    <td><strong>LayerZero ($ZRO)</strong></td>
+                    <td>2025年2月</td>
+                    <td style="color:var(--accent-green);">$300-500/账号</td>
+                    <td>多次跨链+早期DVN</td>
+                    <td>深度跨链交互</td>
+                </tr>
+                <tr>
+                    <td><strong>Arbitrum ($ARB)</strong></td>
+                    <td>2023年3月</td>
+                    <td style="color:var(--accent-green); font-weight:700;">$3000-$10000+/账号</td>
+                    <td>多账号+正确链上行为</td>
+                    <td>提早布局+正确交互模式</td>
+                </tr>
+                <tr>
+                    <td><strong>dYdX</strong></td>
+                    <td>2021年</td>
+                    <td style="color:var(--accent-green); font-weight:700;">$10000-$50000</td>
+                    <td>高质量交易者</td>
+                    <td>真实交易+合约使用</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="info-box">
+            <h4>📊 收益规律总结</h4>
+            <p>① 越早参与收益越大（边际递减明显）<br>
+            ② 有真实资金投入 + 真实使用场景的账号权重更高<br>
+            ③ 混合策略（链上行为+社交贡献+开发者活动）获得加权分配<br>
+            ④ 多项目同时布局的撸毛党年化收益：熊市约30-200%，牛市可超500%+</p>
+        </div>
+    </div>
+
+    <!-- 四、专业团队模式 -->
+    <div class="section">
+        <div class="section-header">
+            <span class="icon">🏭</span>
+            <h2>专业撸毛团队运作模式</h2>
+        </div>
+        <div class="card-grid">
+            <div class="card">
+                <h3>规模划分</h3>
+                <ul>
+                    <li><strong>小型</strong>：10-50账号，1-3人，月成本$500-2000，收益$5000-50000/年</li>
+                    <li><strong>中型</strong>：50-500账号，3-10人，月成本$2000-10000，收益$50000-500000/年</li>
+                    <li><strong>大型工作室</strong>：500-5000+账号，10人+，月成本$10000+，收益$500000+/年</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>核心能力</h3>
+                <ul>
+                    <li>多云服务器 + 自动化脚本（Python/Bash）</li>
+                    <li>批量创建独立身份（each资金隔离）</li>
+                    <li>集群管理 + 监控仪表板</li>
+                    <li>同时覆盖10-30个活跃点位项目</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>策略类型</h3>
+                <ul>
+                    <li><strong>规模化农场</strong>：多账号批量交互</li>
+                    <li><strong>节点绑定</strong>：运行测试网节点增加资格</li>
+                    <li><strong>流动性LP</strong>：真实提供流动性+赚取Sats+理财收益</li>
+                    <li><strong>社交放大</strong>：X账号内容矩阵+Doscord活跃度</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 五、风险分析 -->
+    <div class="section">
+        <div class="section-header">
+            <span class="icon">⚠️</span>
+            <h2>风险分析</h2>
+        </div>
+
+        <div class="warning-box">
+            <h4>🔴 女巫攻击（Witch Hunting）— 最大风险</h4>
+            <ul>
+                <li><strong>LayerZero</strong>：2025年2月空投后大量被识别为女巫的地址被剥夺资格</li>
+                <li><strong>Arbitrum</strong>：多个大型农场被取消资格，社区有专门的女巫猎人工具</li>
+                <li><strong>大多数L2项目</strong>：现在都有链上行为分析系统</li>
+                <li><strong>被标记后果</strong>：当前空投剥夺 + 未来项目受限 + 法律风险</li>
+            </ul>
+        </div>
+
+        <div class="card-grid">
+            <div class="card">
+                <h3>📉 交易所不上币风险</h3>
+                <ul>
+                    <li>监管/合规原因不上主流交易所</li>
+                    <li>只能在DEX交易，流动性极差</li>
+                    <li>上线后立即归零（rugs）</li>
+                    <li>大量小项目空投实际价值极低</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>💧 流动性风险</h3>
+                <ul>
+                    <li>资金锁在点位项目中，机会成本高</li>
+                    <li>稳定币LP极端行情可能出现脱锚</li>
+                    <li>赎回期限制（Ethena HLPe 7天，ENA 7天）</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>📜 监管风险</h3>
+                <ul>
+                    <li>SEC对部分空投项目发出违规通知</li>
+                    <li>2025-2026年监管趋严</li>
+                    <li>KYC要求越来越高，匿名撸毛空间收窄</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>💥 KelpDAO事件冲击</h3>
+                <ul>
+                    <li>2026年4月被黑$2.9亿（疑似朝鲜Lazarus Group）</li>
+                    <li>LayerZero OFT桥信任度下降</li>
+                    <li>多个项目暂停LayerZero集成</li>
+                    <li>Aave等协议冻结相关资产</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 六、Ethena Season 6 农场攻略 -->
+    <div class="section">
+        <div class="section-header">
+            <span class="icon">🌊</span>
+            <h2>Ethena Season 6 农场攻略（截至2026年9月）</h2>
+        </div>
+        <table class="project-table">
+            <thead>
+                <tr>
+                    <th>方式</th>
+                    <th>Sats倍率</th>
+                    <th>年化收益</th>
+                    <th>说明</th>
+                    <th>推荐指数</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>HLPe Vault（HyENA）</strong></td>
+                    <td style="color:var(--accent-red); font-weight:700;">70x</td>
+                    <td>~5%+</td>
+                    <td>7天赎回期，Hyperliquid上最激进，Upshift支持</td>
+                    <td>⭐⭐⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><strong>Pendle LP</strong></td>
+                    <td style="color:var(--accent-orange); font-weight:700;">60x</td>
+                    <td>~5%</td>
+                    <td>结构化收益，PT/YT分离，40x Sats+40x PENDLE激励</td>
+                    <td>⭐⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><strong>质押ENA</strong></td>
+                    <td style="color:var(--accent-orange);">40x</td>
+                    <td>复利</td>
+                    <td>ENA已跌约90%，风险与机会并存，sENA享受多项目空投加成</td>
+                    <td>⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><strong>Curve LP</strong></td>
+                    <td style="color:var(--accent-yellow);">30x</td>
+                    <td>~5%</td>
+                    <td>稳定币池，几乎无无常损失，最友好入门</td>
+                    <td>⭐⭐⭐⭐</td>
+                </tr>
+                <tr>
+                    <td><strong>持有USDe</strong></td>
+                    <td style="color:var(--accent-yellow);">20x</td>
+                    <td>~3.5%（sUSDe）</td>
+                    <td>最低难度地板，无需锁仓，躺赚</td>
+                    <td>⭐⭐⭐⭐</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 七、数据来源 -->
+    <div class="section">
+        <div class="section-header">
+            <span class="icon">📚</span>
+            <h2>数据来源与可信度评估</h2>
+        </div>
+        <table class="source-table">
+            <thead>
+                <tr>
+                    <th>来源</th>
+                    <th>类型</th>
+                    <th>可信度</th>
+                    <th>说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>airdrops.io</strong></td>
+                    <td>专业空投分析平台</td>
+                    <td class="stars">★★★★★</td>
+                    <td>2017年起，25000+日活读者，定期更新</td>
+                </tr>
+                <tr>
+                    <td><strong>Galaxy Research</strong></td>
+                    <td>研究机构</td>
+                    <td class="stars">★★★★★</td>
+                    <td>银河加密旗下，Bain Capital背景，定期报告</td>
+                </tr>
+                <tr>
+                    <td><strong>The Block</strong></td>
+                    <td>行业媒体</td>
+                    <td class="stars">★★★★</td>
+                    <td>深度报道，空投Outlook文章</td>
+                </tr>
+                <tr>
+                    <td><strong>DeFiPrime</strong></td>
+                    <td>DeFi数据</td>
+                    <td class="stars">★★★★</td>
+                    <td>行业数据跟踪</td>
+                </tr>
+                <tr>
+                    <td><strong>CoinMarketCap Academy</strong></td>
+                    <td>教育</td>
+                    <td class="stars">★★★</td>
+                    <td>基础概念梳理</td>
+                </tr>
+                <tr>
+                    <td><strong>项目官方文档/博客</strong></td>
+                    <td>一手来源</td>
+                    <td class="stars">★★★★</td>
+                    <td>具体项目说明（需交叉验证）</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<div class="footer">
+    <p>🔬 墨灵深度研究报告 | 数据截至2026年5月 | 仅供参考，不构成投资建议</p>
+    <p style="margin-top:8px;">NFA / DYOR</p>
+</div>
+
+</body>
+</html>

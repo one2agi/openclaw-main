@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>搬砖/套利项目发现报告 | 2026-04-29</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  /* Header */
+  .report-header {
+    text-align: center;
+    padding: 50px 0 40px;
+    border-bottom: 1px solid #21262d;
+    margin-bottom: 40px;
+  }
+  .report-header .tag {
+    display: inline-block;
+    background: #1f6feb;
+    color: #fff;
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .report-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .report-header .meta {
+    color: #8b949e;
+    font-size: 13px;
+  }
+  .report-header .meta span { margin: 0 8px; }
+
+  /* Summary box */
+  .summary-box {
+    background: linear-gradient(135deg, #1a2332 0%, #0d1b2a 100%);
+    border: 1px solid #1f6feb;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-box::before {
+    content: "⚡ 一句话结论";
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #58a6ff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .summary-box p {
+    font-size: 17px;
+    color: #e6edf3;
+    margin-top: 24px;
+    line-height: 1.8;
+  }
+
+  /* Section titles */
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #1f6feb;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Opportunity cards */
+  .opportunity-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .opportunity-card:hover {
+    border-color: #58a6ff;
+  }
+
+  .card-header {
+    padding: 20px 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .card-header-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex: 1;
+  }
+
+  .rank-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .rank-1 { background: linear-gradient(135deg, #f7931a, #ff6b35); color: #fff; }
+  .rank-2 { background: linear-gradient(135deg, #6b5b95, #9b59b6); color: #fff; }
+  .rank-3 { background: linear-gradient(135deg, #2980b9, #3498db); color: #fff; }
+  .rank-other { background: #21262d; color: #8b949e; }
+
+  .card-title-wrap h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .card-title-wrap .subtitle {
+    font-size: 13px;
+    color: #8b949e;
+  }
+
+  .stars {
+    font-size: 14px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .card-body {
+    padding: 0 24px 20px;
+    display: none;
+    border-top: 1px solid #21262d;
+  }
+  .card-body.open { display: block; }
+
+  .toggle-icon {
+    font-size: 18px;
+    color: #8b949e;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: transform 0.2s;
+  }
+  .toggle-icon.rotated { transform: rotate(180deg); }
+
+  /* Tables inside cards */
+  .gap-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .gap-table th {
+    background: #1c2128;
+    color: #8b949e;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #30363d;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+  .gap-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #21262d;
+    color: #e6edf3;
+    vertical-align: top;
+  }
+  .gap-table tr:last-child td { border-bottom: none; }
+  .gap-table td:first-child {
+    color: #58a6ff;
+    font-weight: 600;
+    width: 80px;
+  }
+
+  /* Data points */
+  .data-points {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .data-point {
+    background: #1c2128;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid #1f6feb;
+  }
+  .data-point .label {
+    font-size: 11px;
+    color: #8b949e;
+    margin-bottom: 4px;
+  }
+  .data-point .value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #58a6ff;
+  }
+  .data-point .note {
+    font-size: 12px;
+    color: #8b949e;
+    margin-top: 2px;
+  }
+
+  /* Meta tags */
+  .meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0;
+  }
+  .meta-tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tag-profit { background: rgba(46, 160, 67, 0.2); color: #3fb950; border: 1px solid rgba(46,160,67,0.4); }
+  .tag-window { background: rgba(210, 153, 34, 0.2); color: #d29922; border: 1px solid rgba(210,153,34,0.4); }
+  .tag-risk { background: rgba(248, 81, 73, 0.2); color: #f85149; border: 1px solid rgba(248,81,73,0.4); }
+  .tag-scale { background: rgba(136, 46, 229, 0.2); color: #a371f7; border: 1px solid rgba(136,46,229,0.4); }
+
+  /* Top picks section */
+  .top-picks {
+    margin: 40px 0;
+  }
+  .pick-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .pick-card.gold {
+    border-color: #f7931a;
+    background: linear-gradient(135deg, rgba(247,147,26,0.08) 0%, transparent 100%);
+  }
+  .pick-card.silver {
+    border-color: #6b5b95;
+    background: linear-gradient(135deg, rgba(107,91,149,0.08) 0%, transparent 100%);
+  }
+  .pick-card.bronze {
+    border-color: #2980b9;
+    background: linear-gradient(135deg, rgba(41,128,185,0.08) 0%, transparent 100%);
+  }
+
+  .pick-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .pick-medal {
+    font-size: 28px;
+  }
+  .pick-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .pick-reason {
+    font-size: 13px;
+    color: #8b949e;
+    margin-bottom: 12px;
+  }
+  .pick-points {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pick-points li {
+    font-size: 13px;
+    color: #e6edf3;
+    padding-left: 16px;
+    position: relative;
+  }
+  .pick-points li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: #58a6ff;
+  }
+
+  /* Sources */
+  .sources-section {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #21262d;
+  }
+  .source-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 16px;
+  }
+  .source-table th {
+    background: #1c2128;
+    color: #8b949e;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid #30363d;
+  }
+  .source-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #21262d;
+    color: #e6edf3;
+  }
+  .source-table .grade {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(46,160,67,0.2);
+    color: #3fb950;
+  }
+
+  /* Risk section */
+  .risk-section {
+    margin-top: 24px;
+    background: rgba(248,81,73,0.08);
+    border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .risk-section h4 {
+    color: #f85149;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .risk-section ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .risk-section li {
+    font-size: 13px;
+    color: #e6edf3;
+    padding-left: 16px;
+    position: relative;
+  }
+  .risk-section li::before {
+    content: "⚠";
+    position: absolute;
+    left: 0;
+    color: #f85149;
+  }
+
+  /* Mobile */
+  @media (max-width: 600px) {
+    .data-points { grid-template-columns: 1fr; }
+    .report-header h1 { font-size: 22px; }
+  }
+
+  .click-hint {
+    font-size: 11px;
+    color: #484f58;
+    margin-top: 4px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header class="report-header">
+    <div class="tag">实时数据</div>
+    <h1>🔍 搬砖/套利项目发现报告</h1>
+    <div class="meta">
+      <span>📅 2026-04-29</span>
+      <span>|</span>
+      <span>🕵️ 墨灵团队商业情报</span>
+      <span>|</span>
+      <span>📊 10个真实机会</span>
+    </div>
+  </header>
+
+  <!-- Summary -->
+  <div class="summary-box">
+    <p>2026年4月底，中国市场存在多个由<strong>政策变动、供需错配、消费情绪转移</strong>驱动的套利窗口。入境旅游服务（+22.3%爆发式增长）、IP联名收藏品倒卖（19倍超额认购）、节假日机票追踪是最快见钱的三个方向；非洲零关税政策（5月1日生效，3年有效期）则是有壁垒的规模级机会。</p>
+  </div>
+
+  <!-- Top 3 -->
+  <h2 class="section-title">🏆 最值得深挖的3个方向</h2>
+  <div class="top-picks">
+
+    <div class="pick-card gold">
+      <div class="pick-header">
+        <span class="pick-medal">🥇</span>
+        <div>
+          <div class="pick-title">入境旅游购物服务套利</div>
+          <div class="pick-reason">规模最大、壁垒最高、窗口最长（3-5年）</div>
+        </div>
+      </div>
+      <ul class="pick-points">
+        <li><strong>为什么第一</strong>：入境外国游客Q1同比+22.3%（2,130万人次），但语言/支付/退税基础设施严重滞后，gap巨大</li>
+        <li><strong>核心壁垒</strong>：不是资本，而是"语言能力+本地资源+运营能力"的综合壁垒。能做的人不多，做得好的人更少</li>
+        <li><strong>市场规模</strong>：2025年入境旅游消费 USD 1,311亿（+39%），仍在高速增长</li>
+        <li><strong>最简切入点</strong>：做一个面向入境游客的"中国购物+退税"多语言小程序/公众号</li>
+      </ul>
+    </div>
+
+    <div class="pick-card silver">
+      <div class="pick-header">
+        <span class="pick-medal">🥈</span>
+        <div>
+          <div class="pick-title">非洲零关税进口套利</div>
+          <div class="pick-reason">政策护航3年，20-40%综合利润率</div>
+        </div>
+      </div>
+      <ul class="pick-points">
+        <li><strong>为什么第二</strong>：5月1日起对20个非洲建交国（非最不发达国家）实施零关税，持续至2028年——3年政策红利</li>
+        <li><strong>核心壁垒</strong>：跨境供应链。不是纯信息差，而是执行壁垒——需要本地合作伙伴、清关能力、外汇管理</li>
+        <li><strong>套利空间</strong>：零关税+非洲源头采购价差，综合利润率20-40%</li>
+        <li><strong>最简切入点</strong>：先从一个小品类（非洲咖啡豆、坦桑蓝宝石）做试点，找到可靠供应商后快速放大</li>
+      </ul>
+    </div>
+
+    <div class="pick-card bronze">
+      <div class="pick-header">
+        <span class="pick-medal">🥉</span>
+        <div>
+          <div class="pick-title">IP联名收藏品倒卖（Pop Mart类）</div>
+          <div class="pick-reason">情绪溢价逻辑不理性，快进快出赚差价</div>
+        </div>
+      </div>
+      <ul class="pick-points">
+        <li><strong>为什么第三</strong>：Pop Mart Labubu冰箱：官方CNY 5,999，二手市场CNY 8,888（50%溢价）。同等功能产品仅CNY 137，情绪价值溢价30-65倍</li>
+        <li><strong>核心壁垒</strong>：抢购执行能力+对IP热度的判断力（哪些IP会火？火多久？）</li>
+        <li><strong>风险</strong>：Pop Mart多次增加供应打压二手价，窗口期短（1-2个月内价格回归），需快速行动+快速出货</li>
+        <li><strong>最简切入点</strong>：监控Pop Mart/Labubu新品发售信息，提前准备抢购资源，出货速度是关键</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- All Opportunities -->
+  <h2 class="section-title">📋 全部10个机会详情</h2>
+
+  <!-- Opportunity 1 -->
+  <div class="opportunity-card" id="opp1">
+    <div class="card-header" onclick="toggleCard('opp1')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-1">💰</div>
+        <div class="card-title-wrap">
+          <h3>Pop Mart Labubu冰箱倒卖 — IP情绪溢价套利</h3>
+          <div class="subtitle">官方价CNY 5,999 → 二手市场CNY 8,888（50%溢价，19倍超额认购）</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp1-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp1-body">
+      <table class="gap-table">
+        <tr><th>维度</th><th>分析</th></tr>
+        <tr><td>信息差</td><td>普通消费者不知道预约已超19倍供应，二级市场价格锚点未在买家心智中建立</td></tr>
+        <tr><td>执行差</td><td>JD.com限量发售（4月29日10pm，每人限1台），需程序化/团队协作抢购</td></tr>
+        <tr><td>情绪差</td><td>功能替代品仅CNY 137-200，IP加持后溢价30-65倍，消费者为情绪价值支付的意愿远超功能价值</td></tr>
+      </table>
+      <div class="data-points">
+        <div class="data-point">
+          <div class="label">超额认购倍数</div>
+          <div class="value">19x</div>
+          <div class="note">38,000预约 / 1,998台供应</div>
+        </div>
+        <div class="data-point">
+          <div class="label">单台理论利润</div>
+          <div class="value">CNY 2,889</div>
+          <div class="note">50%溢价出货</div>
+        </div>
+        <div class="data-point">
+          <div class="label">风险调整利润率</div>
+          <div class="value">30-40%</div>
+          <div class="note">考虑供应增加后的下跌风险</div>
+        </div>
+        <div class="data-point">
+          <div class="label">鑫宝股价涨幅</div>
+          <div class="value">+47%</div>
+          <div class="note">IP联名效应，1个月内</div>
+        </div>
+      </div>
+      <div class="meta-tags">
+        <span class="meta-tag tag-profit">💰 风险调整利润率 30-40%</span>
+        <span class="meta-tag tag-window">⏱️ 窗口期 1-2个月（快速行动）</span>
+        <span class="meta-tag tag-risk">⚠️ 风险：供应增加打压二手价</span>
+        <span class="meta-tag tag-scale">📦 门槛：CNY 6,000+起，需抢购工具</span>
+      </div>
+      <p class="click-hint">数据来源：Yicai Global，2026-04-29</p>
+    </div>
+  </div>
+
+  <!-- Opportunity 2 -->
+  <div class="opportunity-card" id="opp2">
+    <div class="card-header" onclick="toggleCard('opp2')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-2">✈️</div>
+        <div class="card-title-wrap">
+          <h3>节假日机票价格追踪套利</h3>
+          <div class="subtitle">北京→乌鲁木齐：CNY 4,500-6,000 → CNY 2,700（降幅40-55%），已成规律</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp2-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp2-body">
+      <table class="gap-table">
+        <tr><th>维度</th><th>分析</th></tr>
+        <tr><td>时机差</td><td>航司动态定价算法：初期高价测试需求，临近出发上座率不足则大幅降价</td></tr>
+        <tr><td>信息差</td><td>普通消费者4月初就买票锁定，不知道"等待最后2-3天"策略</td></tr>
+        <tr><td>执行差</td><td>需监控工具（Flight Master API）+对高价值航线（长线、热门目的地）的知识</td></tr>
+      </table>
+      <div class="data-points">
+        <div class="data-point">
+          <div class="label">北京-乌市最大降幅</div>
+          <div class="value">-55%</div>
+          <div class="note">CNY 6,000 → CNY 2,700</div>
+        </div>
+        <div class="data-point">
+          <div class="label">旅客价格敏感阈值</div>
+          <div class="value">CNY 200</div>
+          <div class="note">超此金额需求抑制明显</div>
+        </div>
+        <div class="data-point">
+          <div class="label">当前平均票价</div>
+          <div class="value">CNY 971</div>
+          <div class="note">仍比去年高13%，比2019高23%</div>
+        </div>
+        <div class="data-point">
+          <div class="label">服务订阅模式</div>
+          <div class="value">CNY 29-99/月</div>
+          <div class="note">监控小程序，会员收费</div>
+        </div>
+      </div>
+      <div class="meta-tags">
+        <span class="meta-tag tag-profit">💰 出行节省CNY 1,000-3,000/次</span>
+        <span class="meta-tag tag-window">⏱️ 窗口期：每逢大小节假日</span>
+        <span class="meta-tag tag-scale">🛠️ 门槛：爬虫工具（低）+ 监控能力</span>
+      </div>
+      <p class="click-hint">数据来源：Yicai Global，2026-04-29；Flight Master数据</p>
+    </div>
+  </div>
+
+  <!-- Opportunity 3 -->
+  <div class="opportunity-card" id="opp3">
+    <div class="card-header" onclick="toggleCard('opp3')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-3">🛍️</div>
+        <div class="card-title-wrap">
+          <h3>入境旅游购物服务套利</h3>
+          <div class="subtitle">即时退税增9.3倍，但语言/支付摩擦仍是最大瓶颈（Q1入境+22.3%）</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp3-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp3-body">
+      <table class="gap-table">
+        <tr><th>维度</th><th>分析</th></tr>
+        <tr><td>执行差</td><td>外国游客无法顺畅使用微信/支付宝/退税流程，需要真人向导或数字化工具桥接</td></tr>
+        <tr><td>信息差</td><td>外国游客不知道哪些店支持即时退税、哪些商品退税率最高（13%）</td></tr>
+        <tr><td>支付差</td><td>即时退税需信用卡预授权，许多入境游客缺乏本地支付能力</td></tr>
+      </table>
+      <div class="data-points">
+        <div class="data-point">
+          <div class="label">Q1入境人次</div>
+          <div class="value">2,130万</div>
+          <div class="note">同比+22.3%</div>
+        </div>
+        <div class="data-point">
+          <div class="label">即时退税增长</div>
+          <div class="value">9.3x</div>
+          <div class="note">退税率13%，税务局数据</div>
+        </div>
+        <div class="data-point">
+          <div class="label">2025年入境消费</div>
+          <div class="value">USD 1,311亿</div>
+          <div class="note">同比+39%</div>
+        </div>
+        <div class="data-point">
+          <div class="label">退税门店数</div>
+          <div class="value">8,000+</div>
+          <div class="note">同比翻倍，仍在快速增长</div>
+        </div>
+      </div>
+      <div class="meta-tags">
+        <span class="meta-tag tag-profit">💰 服务费=退税率5-10%（客单CNY 2,000+）</span>
+        <span class="meta-tag tag-window">⏱️ 窗口期：长期（政策持续友好）</span>
+        <span class="meta-tag tag-scale">🌐 门槛：语言能力/海外渠道</span>
+      </div>
+      <p class="click-hint">数据来源：Yicai Global，2026-04-27；澎湃新闻，2026-04-29</p>
+    </div>
+  </div>
+
+  <!-- Opportunities 4-10 (compact) -->
+  <div class="opportunity-card" id="opp4">
+    <div class="card-header" onclick="toggleCard('opp4')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-other">🎫</div>
+        <div class="card-title-wrap">
+          <h3>政府消费券信息聚合套利</h3>
+          <div class="subtitle">五一期间全国CNY 2.84亿消费券发放，券分散在多个平台难以获取</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp4-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp4-body">
+      <div class="data-points">
+        <div class="data-point"><div class="label">全国消费券总额</div><div class="value">CNY 2.84亿</div></div>
+        <div class="data-point"><div class="label">杭州旅游补贴</div><div class="value">CNY 2,000万</div></div>
+        <div class="data-point"><div class="label">海南优惠券</div><div class="value">CNY 3,000万</div></div>
+        <div class="data-point"><div class="label">重庆综合活动</div><div class="value">CNY 10亿+折扣</div></div>
+      </div>
+      <p style="font-size:13px;color:#8b949e;margin:12px 0;">机会：消费券聚合小程序（广告变现）、消费券代领服务（CNY 5-20/次）。<strong>风险</strong>：信息聚合门槛低，竞争激烈。</p>
+      <p class="click-hint">数据来源：Yicai Global，2026-04-29；文化和旅游部数据</p>
+    </div>
+  </div>
+
+  <div class="opportunity-card" id="opp5">
+    <div class="card-header" onclick="toggleCard('opp5')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-other">🌏</div>
+        <div class="card-title-wrap">
+          <h3>非洲零关税进口套利</h3>
+          <div class="subtitle">5月1日生效，持续至2028年，20个非洲建交国零关税（节省13%税率）</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp5-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp5-body">
+      <div class="data-points">
+        <div class="data-point"><div class="label">政策有效期</div><div class="value">3年</div><div class="note">2026/5/1 - 2028/4/30</div></div>
+        <div class="data-point"><div class="label">套利空间</div><div class="value">20-40%</div><div class="note">零关税+源头采购价差</div></div>
+        <div class="data-point"><div class="label">涉及国家</div><div class="value">20个</div><div class="note">非洲建交国（非最不发达国家）</div></div>
+        <div class="data-point"><div class="label">适用品类</div><div class="value">多类</div><div class="note">祖母绿/咖啡/农产品/红酒等</div></div>
+      </div>
+      <p style="font-size:13px;color:#8b949e;margin:12px 0;">机会：非洲特色商品进口代理；电商分销（天猫国际）；政策咨询服务。<strong>风险</strong>：需要跨境供应链资源，非轻资产项目。</p>
+      <p class="click-hint">数据来源：国务院关税税则委员会公告，澎湃新闻，2026-04-29</p>
+    </div>
+  </div>
+
+  <div class="opportunity-card" id="opp6">
+    <div class="card-header" onclick="toggleCard('opp6')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-other">📈</div>
+        <div class="card-title-wrap">
+          <h3>黄金投资情绪转移套利</h3>
+          <div class="subtitle">金饰消费-23%，但投资需求爆发；金价回调提供入场窗口</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp6-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp6-body">
+      <div class="data-points">
+        <div class="data-point"><div class="label">Q1金饰消费</div><div class="value">-23%</div><div class="note">仅300吨（消费者觉得贵）</div></div>
+        <div class="data-point"><div class="label">全球黄金需求</div><div class="value">+2%</div><div class="note">1,231吨（含OTC）</div></div>
+        <div class="data-point"><div class="label">金价单日跌幅</div><div class="value">-CNY 30+/克</div><div class="note">国际金价回落至4,500美元</div></div>
+      </div>
+      <p style="font-size:13px;color:#8b949e;margin:12px 0;">机会：黄金定投服务；二手金饰回收中介；黄金资讯订阅。<strong>风险</strong>：金价波动性大。</p>
+      <p class="click-hint">数据来源：世界黄金协会Q1数据；界面新闻，2026-04-29</p>
+    </div>
+  </div>
+
+  <div class="opportunity-card" id="opp7">
+    <div class="card-header" onclick="toggleCard('opp7')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-other">🚗</div>
+        <div class="card-title-wrap">
+          <h3>新能源车涨价预期套利</h3>
+          <div class="subtitle">存储芯片暴涨300%→比亚迪等被迫提价，5月1日前窗口明确</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp7-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp7-body">
+      <div class="data-points">
+        <div class="data-point"><div class="label">比亚迪智驾包涨幅</div><div class="value">+21%</div><div class="note">CNY 9,900 → CNY 12,000（5/1生效）</div></div>
+        <div class="data-point"><div class="label">DDR5芯片涨幅</div><div class="value">+300%</div><div class="note">2025年9月 → 2026年1月</div></div>
+        <div class="data-point"><div class="label">小米SU7涨幅</div><div class="value">+CNY 4,000</div></div>
+        <div class="data-point"><div class="label">华为Hi方案涨幅</div><div class="value">+CNY 10,000</div></div>
+      </div>
+      <p style="font-size:13px;color:#8b949e;margin:12px 0;">机会：购车时机顾问；涨价前库存车中介；汽车芯片行情数据服务。</p>
+      <p class="click-hint">数据来源：Yicai Global，2026-04-29；TrendForce数据</p>
+    </div>
+  </div>
+
+  <div class="opportunity-card" id="opp8">
+    <div class="card-header" onclick="toggleCard('opp8')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-other">🏠</div>
+        <div        <div class="card-title-wrap">
+          <h3>杭州豪宅中介套利</h3>
+          <div class="subtitle">高端房产需求上升，新富阶层成购买主力，豪宅与普通住宅分化</div>
+        </div>
+      </div>
+      <span class="stars">⭐⭐</span>
+      <span class="toggle-icon" id="opp8-icon">▼</span>
+    </div>
+    <div class="card-body" id="opp8-body">
+      <p style="font-size:13px;color:#8b949e;margin:12px 0;">机会：豪宅中介（佣金高）；豪宅装修/软装服务。<strong>风险</strong>：流动性差，变现周期长。</p>
+    </div>
+  </div>
+
+  <div class="opportunity-card" id="opp9">
+    <div class="card-header" onclick="toggleCard('opp9')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-other">📱</div>
+        <div class="card-title-wrap">
+          <h3>具身智能/低空经济培训需求</h3>
+          <div class="subtitle">教育部新增38个专业方向（具身智能/低空经济），教材/实训/师资均为空白</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="stars">⭐⭐⭐</span>
+        <span class="toggle-icon" id="opp9-icon">▼</span>
+      </div>
+    </div>
+    <div class="card-body" id="opp9-body">
+      <p style="font-size:13px;color:#8b949e;margin:12px 0;">机会：教材/课程开发；职业院校师资培训；实训设备代理（人形机器人/无人机）。<strong>风险</strong>：需要教育资源，非快速变现项目。</p>
+      <p class="click-hint">数据来源：教育部；界面新闻，2026-04-29</p>
+    </div>
+  </div>
+
+  <div class="opportunity-card" id="opp10">
+    <div class="card-header" onclick="toggleCard('opp10')">
+      <div class="card-header-left">
+        <div class="rank-badge rank-other">🔋</div>
+        <div class="card-title-wrap">
+          <h3>绿色保险缺口套利</h3>
+          <div class="subtitle">新能源行业快速发展，但绿色保险产品严重滞后；长护险全国推开中</div>
+        </div>
+      </div>
+      <span class="stars">⭐⭐</span>
+      <span class="toggle-icon" id="opp10-icon">▼</span>
+    </div>
+    <div class="card-body" id="opp10-body">
+      <p style="font-size:13px;color:#8b949e;margin:12px 0;">机会：新能源设备定制保险；普惠长护险中介咨询服务。<strong>风险</strong>：长期机会，短期变现能力弱。</p>
+      <p class="click-hint">数据来源：界面新闻，2026-04-29</p>
+    </div>
+  </div>
+
+  <!-- Risk Section -->
+  <div class="risk-section">
+    <h4>⚠️ 风险提示</h4>
+    <ul>
+      <li><strong>政策风险</strong>：非洲零关税/入境旅游受双边政策影响</li>
+      <li><strong>执行风险</strong>：倒卖类需快速出货，慢了就亏损</li>
+      <li><strong>合规风险</strong>：外汇管理、税务、代购合规性</li>
+      <li><strong>竞争风险</strong>：信息差窗口会被快速填平，先发优势关键</li>
+    </ul>
+  </div>
+
+  <!-- Sources -->
+  <div class="sources-section">
+    <h2 class="section-title">📚 数据来源</h2>
+    <table class="source-table">
+      <tr><th>来源</th><th>可信度</th><th>类型</th></tr>
+      <tr><td>一财全球 (Yicai Global)</td><td><span class="grade">A级</span></td><td>实时财经新闻（记者核实）</td></tr>
+      <tr><td>界面新闻 (Jiemian)</td><td><span class="grade">A级</span></td><td>主流商业媒体</td></tr>
+      <tr><td>澎湃新闻 (ThePaper)</td><td><span class="grade">A级</span></td><td>官方背景权威媒体</td></tr>
+      <tr><td>世界黄金协会</td><td><span class="grade">A级</span></td><td>行业权威数据</td></tr>
+      <tr><td>国务院关税税则委员会</td><td><span class="grade">A级</span></td><td>官方政策文件</td></tr>
+    </table>
+    <p style="font-size:12px;color:#484f58;margin-top:12px;">总来源数：5个权威来源 | 研究日期：2026-04-29（实时数据）</p>
+  </div>
+
+</div><!-- end container -->
+
+<script>
+function toggleCard(id) {
+  var body = document.getElementById(id + '-body');
+  var icon = document.getElementById(id + '-icon');
+  body.classList.toggle('open');
+  if (body.classList.contains('open')) {
+    icon.textContent = '▲';
+    icon.classList.add('rotated');
+  } else {
+    icon.textContent = '▼';
+    icon.classList.remove('rotated');
+  }
+}
+// Open top 3 by default
+['opp1','opp2','opp3'].forEach(function(id){ toggleCard(id); });
+</script>
+
+</body>
+</html>
