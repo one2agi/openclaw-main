@@ -24,7 +24,23 @@ memories.lance
 ../npm/
 npm/
 
+# Media (images, audio, video)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp3
+*.mp4
+*.wav
+*.ogg
+*.webm
+
+# HTML output files (generated, not source)
+*.html
+
 # System files
 .DS_Store
 *.tmp
 *.bak
+
