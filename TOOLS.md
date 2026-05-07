@@ -1,18 +1,11 @@
 # TOOLS.md - 工具配置
 
-_所有工具配置的唯一权威。操作规则见 AGENTS.md，安全禁区见 AGENTS.md 红线。_
-
-## 安全提醒
-
-**安全禁区（完整规则 → AGENTS.md 红线）：**
-- Windows 系统级文件禁止操作（C:\Windows\、C:\Program Files\ 等）
-- 涉及 PATH / 注册表的操作必须汇报
-- 未经 faiz 明确同意，不执行外部操作
+_所有工具配置的唯一权威。操作规则见 AGENTS.md。_
 
 ## MCP Servers
 
-- **serena**：`openclaw mcp set` 已注册，`serena-mcp-server` 命令
-- **安装**：`uv tool install` 装在 `~/.local/bin/`
+- **serena**：`openclaw mcp set` 已注册，`serena-mcp-server` 命令；`uv tool install` 装在 `~/.local/bin/`
+- **notionhq**：本地 `npx @notionhq/notion-mcp-server` 已配置；读写均用 MCP 工具；data_source_id：手写笔记 `0b34f4cf-c8e2-8383-840f-87946b7b821c` / 资源 `b4a4f4cf-c8e2-8348-9f99-07ff23b401bc` / 项目管理器 `3674f4cf-c8e2-8252-ba79-074460dcdc9d`
 
 ## Browser
 
@@ -34,9 +27,9 @@ _所有工具配置的唯一权威。操作规则见 AGENTS.md，安全禁区见
 ## OpenClaw 运维
 
 - **exec.host**：`auto`（设为 `gateway` 会被安全策略拦截）
-- **沙盒限制**：sub-agent 拒绝访问 workspace 外路径
-- **isolated session**：无 exec 权限，`toolsAllow: ["exec"]` 可开启
+- **沙盒限制**：sub-agent 拒绝访问 workspace 外路径；isolated session 无 exec 权限（`toolsAllow: ["exec"]` 可开启）
 - **Browser**：WSL2 下需 `sudo ldconfig` 刷新库缓存
+- **沙盒限制详情**：sub-agent 沙盒拒绝访问 workspace 外路径；isolated session 无 exec 权限（`toolsAllow: ["exec"]` 可开启）
 
 ## Safe Delete
 
@@ -65,6 +58,16 @@ openclaw gateway status/start/stop/restart
 openclaw mcp list/set/unset/show
 openclaw doctor --non-interactive
 ```
+
+## 市场研究 Skill
+
+- **market-research（ivan）** → 报告需要数字/百分比时用，侧重真实性、量化数据
+- **market-research-agent（1ka）** → 报告需要快速、结构化、有摘要时用，侧重速度和呈现
+
+## 报告集中仓库
+
+- 仓库：jichangtuijie/ai-workforce-report
+- GitHub Pages：https://jichangtuijie.github.io/ai-workforce-report/
 
 ## Workspace 目录
 

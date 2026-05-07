@@ -27,7 +27,7 @@ description: OpenClaw 工作区文档机制指南。当需要理解 OpenClaw 的
 | **TOOLS.md**             | 本地工具笔记   | 环境配置、设备别名、偏好设置          |
 | **IDENTITY.md**          | 身份卡      | Agent 名称、emoji、简短自我介绍   |
 | **USER.md**              | 用户画像     | 用户偏好、称呼、背景信息            |
-| **MEMORY.md**            | 长期记忆     | 持久事实、历史决策、经验总结          |
+| **MEMORY.md**            | 长期记忆     | 持久事实         |
 | **memory/YYYY-MM-DD.md** | 每日日志     | 当天运行上下文、观察记录            |
 | **HEARTBEAT.md**         | 心跳任务模板   | 定时/后台任务的指令模板            |
 

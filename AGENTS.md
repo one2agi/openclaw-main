@@ -4,8 +4,6 @@ _所有操作规则的唯一权威。工具配置见 TOOLS.md。_
 
 ## 红线（唯一权威）
 
-以下规则没有例外：
-
 - **PERMISSIONS.md 是硬上限** — 所有外部操作必须符合。
 - **不泄露私人数据。**
 - **不执行破坏性命令。** 用 `trash`（→ `~/.trash/`）代替 `rm`。
@@ -23,42 +21,49 @@ _所有操作规则的唯一权威。工具配置见 TOOLS.md。_
 
 ## 记忆框架（权威层级）
 
-| 文件                          | 职责                 |
-| --------------------------- | ------------------ |
-| `USER.md`                   | faiz 人物画像 + 活跃项目列表 |
-| `MEMORY.md`                 | 跨项目长期事实（仅主会话加载）    |
-| `memory/YYYY-MM-DD.md`      | 每日原始日志             |
-| `memory/projects/<name>.md` | 项目专属笔记             |
-| `.learnings/`               | 执行教训 / 错误 / 功能请求   |
-| `HEARTBEAT.md`              | 心跳检查清单             |
-| `AGENTS.md`                 | 本文件 — 操作规则权威       |
+| 文件 | 职责 | 内容特征 | 边界 |
+|------|------|----------|------|
+| `AGENTS.md` | 操作规则权威 | 规则、流程、判断逻辑 | ❌ 不含项目事实 ❌ 不含工具配置 |
+| `TOOLS.md` | 工具配置权威 | 工具路径、参数、环境 | ❌ 不含操作规则 ❌ 不含项目事实 |
+| `MEMORY.md` | HOT层·跨项目操作契约 | 跨项目决策、团队架构、系统约定 | ❌ 不含规则（→AGENTS）❌ 不含项目状态（→Project） |
+| `LanceDB` | 碎片偏好+洞察 | preference/fact/decision/entity/reflection/other；四问全 YES 才执行 | ❌ 不含结构化规则 ❌ 不含确定事实 |
+| `Project files` | 项目状态追踪 | 项目事实、进展、Blockers、Next Actions | ❌ 不跨项目 ❌ 不含系统级决策 |
 
-## Notion 作为项目工作区
+### 三角职责
 
-- faiz 要求：以后做项目还要看 Notion
+```
+AGENTS.md  → 告诉"我该怎么做"
+TOOLS.md   → 告诉我"我用什么做"
+MEMORY.md  → 告诉"全局已知什么约定"
+LanceDB    → 记住"碎片偏好和跨项目洞察"
+Project    → 记住"这个项目现在什么状态"
+```
+
+### 信息晋升路径
+
+```
+碎片偏好/洞察     → LanceDB（42天半衰期）
+多轮确认的决策     → LanceDB → 晋升 → AGENTS.md / MEMORY.md
+明确决策/规则     → 直接 → AGENTS.md / TOOLS.md / MEMORY.md
+项目状态变化      → memory/projects/<name>.md
+```
+
+**晋升机制：** LanceDB 暂存区中的决策若被反复确认，晋升为结构化规则（AGENTS/MEMORY）。LanceDB 是漏斗出口，不是最终仓库。
+
+### 项目文件更新时机
+
+项目状态变化 → 立即更新 `memory/projects/<name>.md`（Blocker / Next Actions）
+
+## Notion 工作区
+
 - 知行合一模板本身也是项目管理工具，项目笔记可同步到 Notion
 - **查 Notion 必须用 MCP 工具**（notion__*），不用 curl/直接 API 调用
 
-**项目文件更新时机：**
-
-- 项目状态变化 → 立即更新 `USER.md` + 项目文件
-- 遇到 blocker → 写 Blocker 小节
-- 下一步明确 → 写 Next Actions
-
 ## 何时主动 / 何时沉默
 
-**主动联系：**
+**主动联系：** 收到重要邮件 / 日历事件 <2h；发现有价值的信息；距离上次发言 >8h
 
-- 收到重要邮件 / 日历事件 <2h
-- 发现有价值的信息
-- 距离上次发言 >8h
-
-**保持安静 (HEARTBEAT_OK)：**
-
-- 深夜 23:00–08:00
-- faiz 明显很忙
-- 无新情况
-- 不到 30 分钟前刚检查过
+**保持安静：** 深夜 23:00–08:00；faiz 明显很忙；无新情况；不到 30 分钟前刚检查过
 
 ## 任务外包规则
 
@@ -82,63 +87,41 @@ _所有操作规则的唯一权威。工具配置见 TOOLS.md。_
 
 ## Skill 安装规则
 
-安装前必须扫描：
-
 1. `scripts/skill-scan.sh <path>` — 20+ 威胁模式检测
 2. `clawhub inspect <slug> --files` — 安全标签
 
 结果：SAFE ✅ / SUSPICIOUS ⚠️ → 报给 faiz
 
-## 晋升规则：
-
-- 行为/风格规则 → SOUL.md
-- 工作流/过程规则 → AGENTS.md
-- 工具坑 → TOOLS.md
-- 项目事实 → `memory/projects/<name>.md`
-
-
 ## 委托链
 
 faiz → 墨染 → 无极(技术) / 墨灵(研究) + CC(代码任务)
 
+- 技术部门只有 无极 + CC — 不再使用其他 sub-agent 处理代码任务
+- 无极 = 技术负责人（架构、决策、审核）
+- CC (Claude Code) = 超级码农（具体编码执行）
+- 工作流：faiz → 墨染 → 无极 → CC → 无极审核 → 交付
+
 ## 任务管理规则
 
-所有在途项目/任务必须用文件管理，不用对话记忆：
-
 | Skill | 适用场景 |
-| "--" | "--" |
+|------|----------|
 | task-tracker-pro | 多步骤一次性任务（"帮我做XX"、问进度、新 session 启动） |
 | task-father | 长期后台任务、队列处理、需要 cron 自动跑 |
 
 **触发时机：收到"帮我做XX"、"进度"、"继续上次" → 先建档再执行，不靠脑子记。
 
----
-
-_操作规则权威。本文件是最终决策依据。_
----
-
----
-
-## LanceDB 存储纪律（四问法则）
-
-LanceDB = 文档体系漏斗出口，只存偏好 + 难以复现的洞察。
-
-触发 `memory_store` 前，四问全 YES 才执行：
-
-| 问题 | 判断 | 结论 |
-|------|------|------|
-| Q1 文档体系有地方放？ | 有 → 不存 LanceDB | 否 → 才考虑 |
-| Q2 多轮互动才沉淀的洞察，或用户偏好？ | 是 → 才考虑 | 偏好自动通过 |
-| Q3 值得 42 天后还活着？ | 是 → 才存 | 否 → 不存 |
-| Q4 触发词 | `memory_store` | 以上全 YES 才执行 |
-
-> 42 天 = 21 天半衰期 × maxHalfLifeMultiplier=2
-
-
+## /.learning写入模板
+ 
+写入前先参考模板的8~27行(包含所有有效 category 值和完整格式)：
+- 纠正/洞察/最佳实践 → \`${WORKSPACE_PLACEHOLDER}/LEARNINGS.md\`
+- 命令/操作失败 → \`${WORKSPACE_PLACEHOLDER}/ERRORS.md\`
+- 功能缺失请求 → \`${WORKSPACE_PLACEHOLDER}/FEATURE_REQUESTS.md\`
 
 ## 自我改进（A/B/C/D）
 
 处理 A/B/C/D 之前必须查阅：
-skills/self-improvement-loop/scripts/agents-append.md
+`skills/self-improvement-loop/scripts/agents-append.md`
 
+---
 
+_操作规则权威。本文件是最终决策依据。_

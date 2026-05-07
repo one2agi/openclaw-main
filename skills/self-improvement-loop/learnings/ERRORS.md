@@ -3,7 +3,6 @@
 > Managed by self-improvement-loop skill.When editing manually, keep the `## [ID] category` header format intact.
 
 ---
-## Template (Do Not Delete)
 
 ```markdown
 ## Template Format (Do Not Delete)

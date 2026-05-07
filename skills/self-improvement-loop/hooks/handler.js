@@ -69,7 +69,7 @@ const BOOTSTRAP_REMINDER = `
 - 遇到重复 pattern → 更新 Recurrence-Count
 
 ### 格式
-写入前先参考模板的11~26行(包含所有有效 category 值和完整格式)：
+写入前先参考模板的8~27行(包含所有有效 category 值和完整格式)：
 - 纠正/洞察/最佳实践 → \`${WORKSPACE_PLACEHOLDER}/LEARNINGS.md\`
 - 命令/操作失败 → \`${WORKSPACE_PLACEHOLDER}/ERRORS.md\`
 - 功能缺失请求 → \`${WORKSPACE_PLACEHOLDER}/FEATURE_REQUESTS.md\`

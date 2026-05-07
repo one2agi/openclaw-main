@@ -4,8 +4,6 @@
 
 ---
 
-## Template Format (Do Not Delete)
-
 ```markdown
 ## Template Format (Do Not Delete)
 

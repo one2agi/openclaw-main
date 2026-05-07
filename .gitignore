@@ -35,7 +35,7 @@ npm/
 *.wav
 *.ogg
 *.webm
-../.learnings/
+.learnings/
 # HTML output files (generated, not source)
 *.html
 
@@ -44,3 +44,4 @@ npm/
 *.tmp
 *.bak
 
+research/

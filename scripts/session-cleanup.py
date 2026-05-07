@@ -12,7 +12,7 @@ AGE_DAYS = int(os.environ.get("SESSION_CLEANUP_DAYS", "7"))
 AGE_SECONDS = AGE_DAYS * 86400
 DRY_RUN = "--dry-run" in sys.argv
 
-agents = ["main", "claude", "code-dev", "moling", "xingchen"]
+agents = os.environ.get("SESSION_CLEANUP_AGENTS", "main,claude,code-dev,moling,xingchen").split(",")
 now = time.time()
 total_removed = 0
 
