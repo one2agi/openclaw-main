@@ -28,7 +28,9 @@ if [ "$1" = "--write-notified" ]; then
     # v4.6.3: pass entry_id field to write_notified.py via a temp JSON with entry_id populated
     # Read the distill-check JSON and inject entry_id from first_entry_id, then call write_notified.py
     PENDING_DIR="$LEARNINGS_DIR/.pending_notifications"
-    python3 "$JSON_FILE" "$LEARNINGS_DIR" "$WRITE_NOTIFIED_PY" - <<'PYEOF'
+    # v4.7.1: Fix - python3 JSON_FILE would execute JSON as script
+    # Use "python3 -" to read JSON_FILE as data, heredoc as stdin
+    python3 - "$JSON_FILE" "$LEARNINGS_DIR" "$WRITE_NOTIFIED_PY" <<'PYEOF'
 import json, sys, subprocess, os
 
 json_file = sys.argv[1]

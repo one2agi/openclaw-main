@@ -107,8 +107,18 @@ faiz → 墨染 → 无极(技术) / 墨灵(研究) + CC(代码任务)
 |------|----------|
 | task-tracker-pro | 多步骤一次性任务（"帮我做XX"、问进度、新 session 启动） |
 | task-father | 长期后台任务、队列处理、需要 cron 自动跑 |
+| taskflow | 复杂编排：多步骤+等待外部事件，其他工具无法替代 |
+| cron | 定时提醒、周期性检查、到点执行 agent action |
+| update_plan | 当前 session 多步骤任务的实时进度展示 |
 
-**触发时机：收到"帮我做XX"、"进度"、"继续上次" → 先建档再执行，不靠脑子记。
+**触发时机：** 收到"帮我做XX"、"进度"、"继续上次" → 先建档再执行，不靠脑子记。
+
+**工具选择逻辑：**
+- 单 session 内多步骤 → `update_plan`（临时的，进度展示）
+- 多步骤 + 需跨 session 继续 → `task-tracker-pro`（落盘的）
+- 定时/周期任务 → `cron`
+- 长期后台 + 队列 + cron 驱动 → `task-father`
+- 复杂编排 + 等外部事件恢复 → `taskflow`
 
 ## /.learning写入模板
  

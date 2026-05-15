@@ -1,9 +1,9 @@
 # Dependencies
 node_modules/
-
+xianyu-openclaw-channel/
 # Logs
 *.log
-
+*.pyc
 # Environment (contains secrets)
 .env
 
@@ -45,3 +45,5 @@ npm/
 *.bak
 
 research/
+memory/
+!workspace/memory/projects/*

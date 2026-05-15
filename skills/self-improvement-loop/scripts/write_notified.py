@@ -94,6 +94,23 @@ def _do_update(entry_id, learnings_dir, status_val=None, notified_val=None, nc_v
     """Shared update logic for both old-mode and new-mode."""
     # Expand ~ in path
     learnings_dir = os.path.expanduser(learnings_dir)
+    # Bug5 fix (v4.6.15): when notified=1 without explicit nc → auto-increment Notification-Count
+    if notified_val == 1 and nc_val is None:
+        for fname, fpath in {
+            "LEARNINGS.md": os.path.join(learnings_dir, "LEARNINGS.md"),
+            "ERRORS.md": os.path.join(learnings_dir, "ERRORS.md"),
+            "FEATURE_REQUESTS.md": os.path.join(learnings_dir, "FEATURE_REQUESTS.md"),
+        }.items():
+            if os.path.exists(fpath):
+                with open(fpath) as f:
+                    c = f.read()
+                m = re.search(r"## \[" + re.escape(entry_id) + r"\].+?(?=\n## \[|$)", c, re.DOTALL)
+                if m and "- Notification-Count:" in m.group(0):
+                    existing_nc = int(re.search(r"- Notification-Count:\s*(\d+)", m.group(0)).group(1))
+                    nc_val = existing_nc + 1
+                    break
+        if nc_val is None:
+            nc_val = 1  # default to 1 if no existing NC field found
     file_map = {
         "LEARNINGS.md": os.path.join(learnings_dir, "LEARNINGS.md"),
         "ERRORS.md": os.path.join(learnings_dir, "ERRORS.md"),
