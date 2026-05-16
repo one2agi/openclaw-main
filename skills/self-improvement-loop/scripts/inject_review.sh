@@ -1,48 +1,42 @@
 #!/bin/bash
-# inject_review.sh — Generate structured self-review prompt
-# v1.0.0
-# Usage: inject_review.sh <learnings_dir>
+# inject_review.sh — Self-review prompt generator (单源)
+# v3.1.0 — 技能候选时评价是否值得创建，不直接创建+优化
+# handler.js 通过 runScript() 调用，环境变量传入 LEARNINGS_DIR
+# 也可直接调用: LEARNINGS_DIR=xxx bash inject_review.sh
 
-set -euo pipefail
+LEARNINGS_DIR="${LEARNINGS_DIR:-$(pwd)/.learnings}"
 
-LEARNINGS_DIR="${1:-}"
+python3 << 'PYEOF'
+import os
+ld = os.environ.get('LEARNINGS_DIR', '')
+prompt = """
+## 🔮 Self-Review — 任务回顾
 
-if [ -z "$LEARNINGS_DIR" ]; then
-    echo "Usage: inject_review.sh <learnings_dir>" >&2
-    exit 1
-fi
+请按以下格式填写，完成后：
+- 如果"技能候选"填了"有"→ 评价是否值得创建技能，值得则用 /create-skill 创建
+- 如果"技能候选"填了"无"→ 将本次回顾写入 `{ld}/LEARNINGS.md`（参考模板格式）
 
-# Read learnings_dir from argument, substitute into prompt
-python3 -c "
-import sys
-ld = sys.argv[1] if len(sys.argv) > 1 else ''
-prompt = '''
-## 🪞 Self-Review — 任务回顾
+```
+## [YYYYMMDD-NNN] correction|best_practice|insight
+**Logged**: YYYY-MM-DD
+**Status**: pending
+**Pattern-Key**: <source>.<type>.<identifier>
 
-你刚刚完成了一段复杂交互（消息数达到阈值）。现在请回顾这次工作：
+### What Happened
+[描述这次用了什么方法、按什么顺序操作]
 
-### 1. 这次用了什么方法/步骤？
-（描述你解决问题的主要思路和操作序列）
+### Root Cause
+[有没有坑/绕弯/失败的原因，没有就写"无"]
 
-### 2. 有没有坑点或绕弯的地方？
-（记录遇到的错误、挫折、或不高效的地方）
+### How To Avoid Next Time
+[下次怎么做更好，一句话可操作原则]
 
-### 3. 下次遇到类似任务，怎么做更好？
-（提炼一条可复用的原则）
-
-### 4. 有没有值得写成技能/规则的内容？
-
----
-
-**记录到 learnings 文件**（选择合适的一个）：
-- 洞察/最佳实践 → ''' + ld + '''/LEARNINGS.md
-- 命令/工具失败 → ''' + ld + '''/ERRORS.md
-- 功能缺失需求 → ''' + ld + '''/FEATURE_REQUESTS.md
-
-参考模板格式（8-27行）：ID用 \`YYYYMMDD-NNN\`，Status填 \`pending\`，Pattern-Key 用 \`<source>.<type>.<identifier>\` 格式。
-
-如果值得记录技能，在条目的 **Tags** 字段中标记 \`skill-candidate\`，
-后续通过 distill.sh 聚合后，由用户决定是否创建技能。
-'''
+### 技能候选
+- 有 / 无
+- 标题：[给技能起个名字]
+- 触发：[什么情况下用]
+- 规则：[2-3句核心规则]
+```
+""".format(ld=ld)
 print(prompt)
-" \"$LEARNINGS_DIR\"
+PYEOF

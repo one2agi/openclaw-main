@@ -62,11 +62,13 @@ function getLearningsDir(sessionKey) {
 // ── Script runner helper ─────────────────────────────────────
 function runScript(scriptName, agentId, ...args) {
   const scriptPath = SELF_IMPROVEMENT_DIR + '/' + scriptName;
+  const env = { ...process.env, LEARNINGS_DIR: learningsDir };
   try {
     return execSync(`bash "${scriptPath}" "${agentId}" ${args.join(' ')}`, {
       encoding: 'utf8',
       timeout: 5000,
       cwd: process.env.HOME,
+      env,
     }).trim();
   } catch (e) {
     return '';
@@ -108,37 +110,9 @@ const BOOTSTRAP_REMINDER = `
 Keep entries simple. Patterns compound — the more you log, the smarter the distill loop becomes.
 `.trim();
 
-// ── Self-review prompt generator ──────────────────────────────
 function generateSelfReviewPrompt(learningsDir) {
-  const prompt = `
-## 🪞 Self-Review — 任务回顾
-
-你刚刚完成了一段复杂交互（消息数达到阈值）。现在请回顾这次工作：
-
-### 1. 这次用了什么方法/步骤？
-（描述你解决问题的主要思路和操作序列）
-
-### 2. 有没有坑点或绕弯的地方？
-（记录遇到的错误、挫折、或不高效的地方）
-
-### 3. 下次遇到类似任务，怎么做更好？
-（写出可操作的原则或具体步骤，用于避免下次遇到类似情况）
-
-### 4. 有没有值得写成技能/规则的内容？
-
----
-
-**记录到 learnings 文件**（选择合适的一个）：
-- 洞察/最佳实践 → \`${learningsDir}/LEARNINGS.md\`
-- 命令/工具失败 → \`${learningsDir}/ERRORS.md\`
-- 功能缺失需求 → \`${learningsDir}/FEATURE_REQUESTS.md\`
-
-参考模板格式（8-27行）：ID用 \`YYYYMMDD-NNN\`，Status填 \`pending\`，Pattern-Key 用 \`<source>.<type>.<identifier>\` 格式。
-
-如果值得记录技能，在条目的 **Tags** 字段中标记 \`skill-candidate\`，
-后续通过 distill.sh 聚合后，由用户决定是否创建技能。
-`.trim();
-  return prompt;
+  // 单源：统一调用 inject_review.sh
+  return runScript('inject_review.sh', '', learningsDir);
 }
 
 // ── Keywords ────────────────────────────────────────────────
@@ -161,6 +135,11 @@ const ERROR_KEYWORDS = [
   "不能", "不行", "用不了", "坏了", "崩了", "出错了", "报错",
   "失败了", "坏掉了", "打不开", "没反应", "没用了",
   "无法", "不行了", "有问题",
+];
+
+const COMPLETION_WORDS = [
+  '完成了', '可以了', '够了', 'done', 'that works', 'perfect',
+  '没问题了', '解决了', '好了', '就这样', 'ok', 'okay'
 ];
 
 const FEATURE_KEYWORDS = [
@@ -231,6 +210,14 @@ const handler = async (event) => {
     const isCorrection = containsKeyword(body, CORRECTION_KEYWORDS);
     const isErrorFeedback = containsKeyword(body, ERROR_KEYWORDS);
     const isFeatureRequest = containsKeyword(body, FEATURE_KEYWORDS);
+    const isCompletion = COMPLETION_WORDS.some(w => body.toLowerCase().includes(w));
+
+    if (isCompletion) {
+      // 完成词触发：立即注入 self-review，跳过关键词检测
+      runScript('session_state.sh', agentId, 'trigger');
+      event.context.messages?.push(generateSelfReviewPrompt(learningsDir));
+      return;
+    }
 
     if (isCorrection) {
       event.context.messages?.push(

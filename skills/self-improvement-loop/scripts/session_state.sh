@@ -1,12 +1,12 @@
 #!/bin/bash
 # session_state.sh — Per-agent session state persistence
-# v1.0.0
+# v1.1.0
 # Usage: session_state.sh <agent_id> <get|inc|reset|trigger|complete|should>
 
 set -euo pipefail
 
 AGENT_ID="${1:-main}"
-LEARNINGS_DIR="$HOME/.openclaw/workspace/agents/$AGENT_ID/.learnings"
+LEARNINGS_DIR="${LEARNINGS_DIR:-$HOME/.openclaw/workspace/agents/$AGENT_ID/.learnings}"
 STATE_FILE="$LEARNINGS_DIR/.session_state.json"
 MAX_MESSAGES=10   # threshold: N messages before self-review
 
@@ -48,12 +48,24 @@ console.log(d.message_count);
 
 trigger_review() {
     init_state
-    node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('$STATE_FILE')); d.review_triggered=true; fs.writeFileSync('$STATE_FILE', JSON.stringify(d))"
+    node -e "
+const fs = require('fs');
+let d = JSON.parse(fs.readFileSync('$STATE_FILE', 'utf8'));
+d.review_triggered = true;
+d.message_count++;
+fs.writeFileSync('$STATE_FILE', JSON.stringify(d, null, 2));
+"
 }
 
 complete_review() {
     init_state
-    node -e "const fs=require('fs'); let d=JSON.parse(fs.readFileSync('$STATE_FILE')); d.review_completed=true; fs.writeFileSync('$STATE_FILE', JSON.stringify(d))"
+    node -e "
+const fs = require('fs');
+let d = JSON.parse(fs.readFileSync('$STATE_FILE', 'utf8'));
+d.review_completed = true;
+d.review_triggered = false;  // allow re-trigger for next task in same session
+fs.writeFileSync('$STATE_FILE', JSON.stringify(d, null, 2));
+"
 }
 
 reset_session() {
@@ -62,12 +74,13 @@ reset_session() {
 
 should_trigger() {
     init_state
-    local count threshold triggered completed
+    local count threshold triggered
     count=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$STATE_FILE')).message_count)" 2>/dev/null || echo 0)
     threshold=$MAX_MESSAGES
     triggered=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$STATE_FILE')).review_triggered)" 2>/dev/null || echo false)
-    completed=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$STATE_FILE')).review_completed)" 2>/dev/null || echo false)
-    [ "$count" -ge "$threshold" ] && [ "$triggered" = "false" ] && [ "$completed" = "false" ] && echo "yes" || echo "no"
+    # Trigger if: count >= threshold AND no review is currently in progress
+    # After complete_review() resets triggered=false, next threshold crossing re-triggers
+    [ "$count" -ge "$threshold" ] && [ "$triggered" = "false" ] && echo "yes" || echo "no"
 }
 
 case "${2:-get}" in
