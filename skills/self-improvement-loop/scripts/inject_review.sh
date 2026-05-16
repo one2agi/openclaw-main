@@ -41,11 +41,8 @@ prompt = '''
 
 参考模板格式（8-27行）：ID用 \`YYYYMMDD-NNN\`，Status填 \`pending\`，Pattern-Key 用 \`<source>.<type>.<identifier>\` 格式。
 
-如果值得记录技能，请用 A/B/C/D 标记：
-- **A** = 创建新技能（用于可复用的完整工作流）
-- **B** = 优化现有技能
-- **C** = 跳过（这次不够通用）
-- **D** = 升华到 SOUL/AGENTS/TOOLS（用于行为规则/工作流/工具坑点）
+如果值得记录技能，在条目的 **Tags** 字段中标记 \`skill-candidate\`，
+后续通过 distill.sh 聚合后，由用户决定是否创建技能。
 '''
 print(prompt)
 " \"$LEARNINGS_DIR\"
