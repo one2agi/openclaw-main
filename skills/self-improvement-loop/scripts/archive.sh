@@ -133,6 +133,46 @@ normalize_outcome() {
     esac
 }
 
+# ── Emit JSONL entry (centralized to avoid duplication) ─────
+emit_entry() {
+    local entry_lines="$1"
+    local entry_id="$2"
+    local entry_cat="$3"
+    local current_status_val="$4"
+
+    local outcome logged_at resolved_at pattern_key entry_id_short title_text
+    local summary details suggested_action tags_str tag_json recurrence_count
+
+    outcome=$(normalize_outcome "$current_status_val")
+    logged_at=$(extract_meta "$entry_lines" "Logged")
+    resolved_at="$TIMESTAMP"
+    pattern_key=$(extract_meta "$entry_lines" "Pattern-Key")
+    entry_id_short=$(echo "$entry_id" | sed 's/^## \[//;s/\].*//')
+    title_text=$(echo "$entry_id" | sed -n 's/^## \[[^]]*] //p')
+    summary=$(extract_field "$entry_lines" "What Happened")
+    details=$(extract_field "$entry_lines" "Root Cause")
+    suggested_action=$(extract_field "$entry_lines" "How To Avoid Next Time")
+    tags_str=$(extract_meta "$entry_lines" "Tags")
+    recurrence_count=$(count_archived_occurrences "$pattern_key")
+
+    # Escape JSON strings
+    summary=$(json_escape <<< "$summary")
+    details=$(json_escape <<< "$details")
+    suggested_action=$(json_escape <<< "$suggested_action")
+    tags_str=$(json_escape <<< "$tags_str")
+    title_text=$(json_escape <<< "$title_text")
+    pattern_key=$(json_escape <<< "$pattern_key")
+
+    if [ -n "$tags_str" ]; then
+        tag_json=$(echo "$tags_str" | sed "s/, */\",\"/g; s/^/\"/; s/$/\"/")
+        tag_json="[$tag_json]"
+    else
+        tag_json="[]"
+    fi
+
+    echo "{\"archived_at\":\"$TIMESTAMP\",\"source_file\":\"$src_tag\",\"outcome\":\"$outcome\",\"entry_id\":\"$entry_id_short\",\"pattern_key\":\"$pattern_key\",\"category\":\"$entry_cat\",\"logged_at\":\"$logged_at\",\"resolved_at\":\"$resolved_at\",\"title\":\"$title_text\",\"summary\":\"$summary\",\"details\":\"$details\",\"suggested_action\":\"$suggested_action\",\"tags\":$tag_json,\"recurrence_count\":$recurrence_count}"
+}
+
 # ── Extract field value from MD entry ──────────────────────
 extract_field() {
     local entry="$1"
@@ -171,40 +211,8 @@ process_file() {
                 if $in_entry && [ -n "$entry_id" ]; then
                     case "$current_status" in
                         resolved|promoted)
-                            local outcome
-                            outcome=$(normalize_outcome "$current_status")
-                            local logged_at resolved_at archived_at
-                            logged_at=$(extract_meta "$entry_lines" "Logged")
-                            resolved_at="$TIMESTAMP"
-                            local pattern_key entry_id_short title_text
-                            pattern_key=$(extract_meta "$entry_lines" "Pattern-Key")
-                            entry_id_short=$(echo "$entry_id" | sed 's/^## \[//;s/\].*//')
-                            title_text=$(echo "$entry_id" | sed -n 's/^## \[[^]]*] //p')
-                            summary=$(extract_field "$entry_lines" "What Happened")
-                            details=$(extract_field "$entry_lines" "Root Cause")
-                            suggested_action=$(extract_field "$entry_lines" "How To Avoid Next Time")
-                            tags_str=$(extract_meta "$entry_lines" "Tags")
-                            # recurrence_count: computed from historical archive JSONL (v4.6.2)
-                            local recurrence_count
-                            recurrence_count=$(count_archived_occurrences "$pattern_key")
-
-                            # Escape JSON strings (using json_escape for proper newline/quote handling)
-                            summary=$(json_escape <<< "$summary")
-                            details=$(json_escape <<< "$details")
-                            suggested_action=$(json_escape <<< "$suggested_action")
-                            tags_str=$(json_escape <<< "$tags_str")
-                            title_text=$(json_escape <<< "$title_text")
-                            pattern_key=$(json_escape <<< "$pattern_key")
-
-                            if [ -n "$tags_str" ]; then
-                                local tag_json
-                                tag_json=$(echo "$tags_str" | sed "s/, */\",\"/g; s/^/\"/; s/$/\"/")
-                                tag_json="[$tag_json]"
-                            else
-                                tag_json="[]"
-                            fi
-
-                            echo "{\"archived_at\":\"$TIMESTAMP\",\"source_file\":\"$src_tag\",\"outcome\":\"$outcome\",\"entry_id\":\"$entry_id_short\",\"pattern_key\":\"$pattern_key\",\"category\":\"$entry_cat\",\"logged_at\":\"$logged_at\",\"resolved_at\":\"$resolved_at\",\"title\":\"$title_text\",\"summary\":\"$summary\",\"details\":\"$details\",\"suggested_action\":\"$suggested_action\",\"tags\":$tag_json,\"recurrence_count\":$recurrence_count}"
+                            # Emit via centralized function
+                            emit_entry "$entry_lines" "$entry_id" "$entry_cat"
                             ;;
                     esac
                 fi
@@ -232,38 +240,7 @@ process_file() {
     if $in_entry && [ -n "$entry_id" ]; then
         case "$current_status" in
             resolved|promoted)
-                local outcome
-                outcome=$(normalize_outcome "$current_status")
-                local logged_at resolved_at
-                logged_at=$(extract_meta "$entry_lines" "Logged")
-                resolved_at="$TIMESTAMP"
-                local pattern_key entry_id_short title_text
-                pattern_key=$(extract_meta "$entry_lines" "Pattern-Key")
-                entry_id_short=$(echo "$entry_id" | sed 's/^## \[//;s/\].*//')
-                title_text=$(echo "$entry_id" | sed -n 's/^## \[[^]]*] //p')
-                summary=$(extract_field "$entry_lines" "What Happened")
-                details=$(extract_field "$entry_lines" "Root Cause")
-                suggested_action=$(extract_field "$entry_lines" "How To Avoid Next Time")
-                tags_str=$(extract_meta "$entry_lines" "Tags")
-                # recurrence_count: computed from historical archive JSONL (v4.6.2)
-                local recurrence_count
-                recurrence_count=$(count_archived_occurrences "$pattern_key")
-
-                summary=$(json_escape <<< "$summary")
-                details=$(json_escape <<< "$details")
-                suggested_action=$(json_escape <<< "$suggested_action")
-                tags_str=$(json_escape <<< "$tags_str")
-                title_text=$(json_escape <<< "$title_text")
-                pattern_key=$(json_escape <<< "$pattern_key")
-
-                if [ -n "$tags_str" ]; then
-                    tag_json=$(echo "$tags_str" | sed "s/, */\",\"/g; s/^/\"/; s/$/\"/")
-                    tag_json="[$tag_json]"
-                else
-                    tag_json="[]"
-                fi
-
-                echo "{\"archived_at\":\"$TIMESTAMP\",\"source_file\":\"$src_tag\",\"outcome\":\"$outcome\",\"entry_id\":\"$entry_id_short\",\"pattern_key\":\"$pattern_key\",\"category\":\"$entry_cat\",\"logged_at\":\"$logged_at\",\"resolved_at\":\"$resolved_at\",\"title\":\"$title_text\",\"summary\":\"$summary\",\"details\":\"$details\",\"suggested_action\":\"$suggested_action\",\"tags\":$tag_json,\"recurrence_count\":$recurrence_count}"
+                emit_entry "$entry_lines" "$entry_id" "$entry_cat" "$current_status"
                 ;;
         esac
     fi
