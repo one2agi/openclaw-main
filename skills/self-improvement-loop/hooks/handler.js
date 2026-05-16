@@ -111,7 +111,6 @@ Keep entries simple. Patterns compound — the more you log, the smarter the dis
 `.trim();
 
 function generateSelfReviewPrompt(learningsDir) {
-  // 单源：统一调用 inject_review.sh
   return runScript('inject_review.sh', '', learningsDir);
 }
 
@@ -135,11 +134,6 @@ const ERROR_KEYWORDS = [
   "不能", "不行", "用不了", "坏了", "崩了", "出错了", "报错",
   "失败了", "坏掉了", "打不开", "没反应", "没用了",
   "无法", "不行了", "有问题",
-];
-
-const COMPLETION_WORDS = [
-  '完成了', '可以了', '够了', 'done', 'that works', 'perfect',
-  '没问题了', '解决了', '好了', '就这样', 'ok', 'okay'
 ];
 
 const FEATURE_KEYWORDS = [
@@ -170,9 +164,6 @@ const handler = async (event) => {
 
   // ── agent:bootstrap ──────────────────────────────────────
   if (event.type === 'agent' && event.action === 'bootstrap') {
-    // Reset session state on new session
-    runScript('session_state.sh', agentId, 'reset');
-
     if (Array.isArray(event.context?.bootstrapFiles)) {
       const reminder = BOOTSTRAP_REMINDER.replace(/\{\{WORKSPACE_LEARNINGS\}\}/g, learningsDir);
       event.context.bootstrapFiles.push({
@@ -186,21 +177,12 @@ const handler = async (event) => {
 
   // ── command:new / command:reset ───────────────────────────
   if ((event.type === 'command:new' || event.type === 'command:reset')) {
-    runScript('session_state.sh', agentId, 'reset');
     return;
   }
 
   // ── session_end ─────────────────────────────────────────────
-  if (event.type === 'session_end') {
-    // 如果 review 已触发（prompt 已注入），标记为完成
-    const state = JSON.parse(
-      runScript('session_state.sh', agentId, 'get') || '{}'
-    );
-    if (state.review_triggered === true && state.review_completed !== true) {
-      runScript('session_state.sh', agentId, 'complete');
-    }
-    return;
-  }
+  // Self-review 由 agent 通过 prompt 自触发，hook 不注入，
+  // session_end 不需要完成标记
 
   // ── message:preprocessed ─────────────────────────────────
   if (event.type === 'message' && event.action === 'preprocessed') {
@@ -210,14 +192,6 @@ const handler = async (event) => {
     const isCorrection = containsKeyword(body, CORRECTION_KEYWORDS);
     const isErrorFeedback = containsKeyword(body, ERROR_KEYWORDS);
     const isFeatureRequest = containsKeyword(body, FEATURE_KEYWORDS);
-    const isCompletion = COMPLETION_WORDS.some(w => body.toLowerCase().includes(w));
-
-    if (isCompletion) {
-      // 完成词触发：立即注入 self-review，跳过关键词检测
-      runScript('session_state.sh', agentId, 'trigger');
-      event.context.messages?.push(generateSelfReviewPrompt(learningsDir));
-      return;
-    }
 
     if (isCorrection) {
       event.context.messages?.push(
@@ -231,22 +205,9 @@ const handler = async (event) => {
       event.context.messages?.push(
         `[Self-Improvement] 🪝 检测到功能请求信号 — 考虑将需求记入 \`${learningsDir}/FEATURE_REQUESTS.md\``
       );
-    } else {
-      // New user message detected → previous AI task just ended
-      // Trigger active reflection reminder (port from deprecated activator.sh)
-      event.context.messages?.push(
-        `[Self-Improvement] 🪝 上一轮任务完成 — 主动回顾：这次有没有可提取的知识？（新发现/更好的方法/隐藏假设/重复踩坑）有就写入 \`${learningsDir}/LEARNINGS.md\``
-      );
     }
-
-    // ── Hermes-style message counting ─────────────────────
-    runScript('session_state.sh', agentId, 'inc');
-    const shouldTrigger = runScript('session_state.sh', agentId, 'should');
-    if (shouldTrigger === 'yes') {
-      runScript('session_state.sh', agentId, 'trigger');
-      const reviewPrompt = generateSelfReviewPrompt(learningsDir);
-      event.context.messages?.push(reviewPrompt);
-    }
+    // Self-review 触发由 prompt 引导（工具调用≥5 / 发现绕弯 / 预判重复）
+    // 不再由 hook 计数注入
     return;
   }
 };

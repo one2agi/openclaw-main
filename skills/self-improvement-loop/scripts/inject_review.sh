@@ -1,6 +1,6 @@
 #!/bin/bash
 # inject_review.sh — Self-review prompt generator (单源)
-# v3.1.0 — 技能候选时评价是否值得创建，不直接创建+优化
+# v4.0.0 — 触发规则参考 Hermes Agent，agent 自触发，不靠 hook 计数
 # handler.js 通过 runScript() 调用，环境变量传入 LEARNINGS_DIR
 # 也可直接调用: LEARNINGS_DIR=xxx bash inject_review.sh
 
@@ -11,6 +11,11 @@ import os
 ld = os.environ.get('LEARNINGS_DIR', '')
 prompt = """
 ## 🔮 Self-Review — 任务回顾
+
+如果在这次交互中出现以下任一情况，请主动触发回顾：
+- 工具调用 ≥ 5
+- 发现了非显而易见的解决方案或绕弯
+- 预判这个工作流会重复
 
 请按以下格式填写，完成后：
 - 如果"技能候选"填了"有"→ 评价是否值得创建技能，值得则用 /create-skill 创建
