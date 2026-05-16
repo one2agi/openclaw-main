@@ -19,7 +19,7 @@
 [Why it happened — structural reason, not surface symptom]
 
 ### How To Avoid Next Time
-[One actionable principle that can transfer to similar situations]
+[写出可操作的原则或具体步骤，用于避免下次遇到类似情况]
 
 **Tags**: 
 **Recurrence-Count**: 

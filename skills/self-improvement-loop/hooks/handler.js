@@ -122,7 +122,7 @@ function generateSelfReviewPrompt(learningsDir) {
 （记录遇到的错误、挫折、或不高效的地方）
 
 ### 3. 下次遇到类似任务，怎么做更好？
-（提炼一条可复用的原则）
+（写出可操作的原则或具体步骤，用于避免下次遇到类似情况）
 
 ### 4. 有没有值得写成技能/规则的内容？
 
@@ -135,11 +135,8 @@ function generateSelfReviewPrompt(learningsDir) {
 
 参考模板格式（8-27行）：ID用 \`YYYYMMDD-NNN\`，Status填 \`pending\`，Pattern-Key 用 \`<source>.<type>.<identifier>\` 格式。
 
-如果值得记录技能，请用 A/B/C/D 标记：
-- **A** = 创建新技能（用于可复用的完整工作流）
-- **B** = 优化现有技能
-- **C** = 跳过（这次不够通用）
-- **D** = 升华到 SOUL/AGENTS/TOOLS（用于行为规则/工作流/工具坑点）
+如果值得记录技能，在条目的 **Tags** 字段中标记 \`skill-candidate\`，
+后续通过 distill.sh 聚合后，由用户决定是否创建技能。
 `.trim();
   return prompt;
 }
@@ -211,6 +208,18 @@ const handler = async (event) => {
   // ── command:new / command:reset ───────────────────────────
   if ((event.type === 'command:new' || event.type === 'command:reset')) {
     runScript('session_state.sh', agentId, 'reset');
+    return;
+  }
+
+  // ── session_end ─────────────────────────────────────────────
+  if (event.type === 'session_end') {
+    // 如果 review 已触发（prompt 已注入），标记为完成
+    const state = JSON.parse(
+      runScript('session_state.sh', agentId, 'get') || '{}'
+    );
+    if (state.review_triggered === true && state.review_completed !== true) {
+      runScript('session_state.sh', agentId, 'complete');
+    }
     return;
   }
 
