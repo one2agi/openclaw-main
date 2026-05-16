@@ -1,88 +1,100 @@
 #!/usr/bin/env python3
-"""write_notified.py — v4.6.3: 将 notified 状态写入 MD 文件，支持 status 更新，entry_id fallback"""
+"""write_notified.py — v4.6.4: 将 notified 状态写入 MD 文件，支持 status 更新，entry_id fallback"""
 import json, sys, os, re
 
+# ── Precompiled regex constants ──────────────────────────────────────────────
+_RE_TITLE_ANCHOR = re.compile(r"(## \[[^\]]+\][^\n]*\n)", re.MULTILINE)
+# Match-ONLY patterns (no trailing newline consumed) — used for replacement
+_RE_BOLD_STATUS = re.compile(r"^\s*\*\*Status\*\*:.*$", re.MULTILINE)
+_RE_DASH_STATUS = re.compile(r"^\s*-\s*Status:.*$", re.MULTILINE)
+_RE_NOTIFIED = re.compile(r"^\s*-\s*Notified:.*$", re.MULTILINE)
+_RE_NC = re.compile(r"^\s*-\s*Notification-Count:.*$", re.MULTILINE)
+# Has-patterns — used to detect presence of Status field
+_RE_HAS_BOLD_STATUS = re.compile(r"^\s*\*\*Status\*\*:", re.MULTILINE)
+_RE_HAS_DASH_STATUS = re.compile(r"^\s*-\s*Status:", re.MULTILINE)
+_RE_NC_EXTRACT = re.compile(r"- Notification-Count:\s*(\d+)")
+# Anchor patterns — match Status line WITH trailing \n, used to find insertion point
+_RE_ANCHOR_BOLD = re.compile(r"\n\s*\*\*Status\*\*:.*(?=\n)")
+_RE_ANCHOR_DASH = re.compile(r"\n\s*-\s*Status:.*(?=\n)")
+
+# Map from field regex to the full line prefix (for replacement)
+_RE_PREFIX = {
+    _RE_NOTIFIED: "  - Notified: ",
+    _RE_NC: "  - Notification-Count: ",
+}
+
+
+def _build_entry_pattern(entry_id):
+    return re.compile(r"(## \[" + re.escape(entry_id) + r"\] .+?)(?=\n## \[|$)", re.DOTALL)
+
+
+def _upsert_field(entry_text, field_re, value_only, anchor_re_list):
+    """Find and replace existing field, or insert after first anchor match. Returns (new_entry, changed)."""
+    line_text = _RE_PREFIX.get(field_re, "") + value_only
+
+    if field_re.search(entry_text):
+        return field_re.sub(line_text, entry_text), True
+
+    for anchor_re in anchor_re_list:
+        m = anchor_re.search(entry_text)
+        if m:
+            # anchor_re pattern ends with a captured \n (group 1 = before \n).
+            # m.end() lands after the trailing \n, so the \n IS consumed.
+            # text[:m.end()] includes the entire Status line with its \n.
+            # Insert the new field line AFTER that \n.
+            return entry_text[:m.end()] + "  - " + line_text + entry_text[m.end():], True
+
+    return entry_text, False
+
+
 def update_md_file(file_path, entry_id, notified_val=None, nc_val=None, status_val=None):
-    """更新 MD 文件中指定 entry 的 Notified / Notification-Count / Status 字段"""
+    """Update MD file — read once, write once. All updates in a single pass."""
     if not os.path.exists(file_path):
         return False
 
     with open(file_path) as f:
         content = f.read()
 
-    # Find entry: ## [ENTRY_ID] ...
-    entry_pattern = r"(## \[" + re.escape(entry_id) + r"\] .+?)(?=\n## \[|$)"
-    m = re.search(entry_pattern, content, re.DOTALL)
+    entry_pat = _build_entry_pattern(entry_id)
+    m = entry_pat.search(content)
     if not m:
         return False
 
     entry_start = m.start(1)
     entry_text = m.group(1)
-
     new_entry = entry_text
 
-    # ── Status field (bold: **Status**) ──
+    has_status_field = _RE_HAS_BOLD_STATUS.search(entry_text) or _RE_HAS_DASH_STATUS.search(entry_text)
+
     if status_val is not None:
-        has_bold_status = bool(re.search(r"^\s*\*\*Status\*\*:", entry_text, re.MULTILINE))
-        has_dash_status = bool(re.search(r"^\s*-\s*Status:", entry_text, re.MULTILINE))
-        if has_bold_status:
-            new_entry = re.sub(r"^\s*\*\*Status\*\*:.*$", f"**Status**: {status_val}", new_entry, flags=re.MULTILINE)
-        elif has_dash_status:
-            new_entry = re.sub(r"^\s*-\s*Status:.*$", f"  - Status: {status_val}", new_entry, flags=re.MULTILINE)
+        if has_status_field:
+            if _RE_HAS_BOLD_STATUS.search(entry_text):
+                new_entry = _RE_BOLD_STATUS.sub(f"**Status**: {status_val}", new_entry)
+            else:
+                new_entry = _RE_DASH_STATUS.sub(f"  - Status: {status_val}", new_entry)
         else:
-            # No Status field exists — insert after title; include Notified/N/C if also being set (single anchor insertion)
+            # No Status field exists — insert Status + all other provided fields as one block
             notified_str = 'true' if notified_val == 1 else 'false' if notified_val is not None else None
             nc_insert = f"  - Notification-Count: {nc_val}\n" if nc_val is not None else ""
             notified_insert = f"  - Notified: {notified_str}\n" if notified_str is not None else ""
             status_line = f"**Status**: {status_val}"
             insert = status_line + ("\n" + notified_insert if notified_insert else "") + ("\n" + nc_insert if nc_insert else "")
-            new_entry = re.sub(
-                r"(## \[[^\]]+\][^\n]*\n)",
-                r"\1" + insert + "\n",
-                new_entry
-            )
-            # Skip individual Notified/N/C passes since we handled them above
+            new_entry = _RE_TITLE_ANCHOR.sub(r"\1" + insert + "\n", new_entry)
             notified_val = None
             nc_val = None
 
-    # ── Notified field (dash: - Notified) ──
     if notified_val is not None:
-        has_notified = bool(re.search(r"^\s*-\s*Notified:", entry_text, re.MULTILINE))
         notified_str = 'true' if notified_val == 1 else 'false'
-        if has_notified:
-            new_entry = re.sub(r"^\s*-\s*Notified:.*$", f"  - Notified: {notified_str}", new_entry, flags=re.MULTILINE)
-        else:
-            # Anchor on bold **Status** (most common in this system) or dash - Status
-            new_entry = re.sub(
-                r"(\n\s*\*\*Status\*\*:[^\n]+\n)",
-                r"\1  - Notified: " + notified_str + "\n",
-                new_entry
-            )
-            if notified_str not in new_entry:  # bold anchor missed, try dash
-                new_entry = re.sub(
-                    r"(\n\s*-\s*Status:[^\n]+\n)",
-                    r"\1  - Notified: " + notified_str + "\n",
-                    new_entry
-                )
+        new_entry, _ = _upsert_field(
+            new_entry, _RE_NOTIFIED, notified_str,
+            [_RE_ANCHOR_BOLD, _RE_ANCHOR_DASH]
+        )
 
-    # ── Notification-Count field ──
     if nc_val is not None:
-        has_nc = bool(re.search(r"^\s*-\s*Notification-Count:", entry_text, re.MULTILINE))
-        if has_nc:
-            new_entry = re.sub(r"^\s*-\s*Notification-Count:.*$", f"  - Notification-Count: {nc_val}", new_entry, flags=re.MULTILINE)
-        else:
-            # Anchor on bold **Status**
-            new_entry = re.sub(
-                r"(\n\s*\*\*Status\*\*:[^\n]+\n)",
-                r"\1  - Notification-Count: " + str(nc_val) + "\n",
-                new_entry
-            )
-            if str(nc_val) not in new_entry:  # bold anchor missed, try dash
-                new_entry = re.sub(
-                    r"(\n\s*-\s*Status:[^\n]+\n)",
-                    r"\1  - Notification-Count: " + str(nc_val) + "\n",
-                    new_entry
-                )
+        new_entry, _ = _upsert_field(
+            new_entry, _RE_NC, str(nc_val),
+            [_RE_ANCHOR_BOLD, _RE_ANCHOR_DASH]
+        )
 
     new_content = content[:entry_start] + new_entry + content[m.end():]
 
@@ -92,36 +104,85 @@ def update_md_file(file_path, entry_id, notified_val=None, nc_val=None, status_v
 
 def _do_update(entry_id, learnings_dir, status_val=None, notified_val=None, nc_val=None):
     """Shared update logic for both old-mode and new-mode."""
-    # Expand ~ in path
     learnings_dir = os.path.expanduser(learnings_dir)
-    # Bug5 fix (v4.6.15): when notified=1 without explicit nc → auto-increment Notification-Count
-    if notified_val == 1 and nc_val is None:
-        for fname, fpath in {
-            "LEARNINGS.md": os.path.join(learnings_dir, "LEARNINGS.md"),
-            "ERRORS.md": os.path.join(learnings_dir, "ERRORS.md"),
-            "FEATURE_REQUESTS.md": os.path.join(learnings_dir, "FEATURE_REQUESTS.md"),
-        }.items():
-            if os.path.exists(fpath):
-                with open(fpath) as f:
-                    c = f.read()
-                m = re.search(r"## \[" + re.escape(entry_id) + r"\].+?(?=\n## \[|$)", c, re.DOTALL)
-                if m and "- Notification-Count:" in m.group(0):
-                    existing_nc = int(re.search(r"- Notification-Count:\s*(\d+)", m.group(0)).group(1))
-                    nc_val = existing_nc + 1
-                    break
-        if nc_val is None:
-            nc_val = 1  # default to 1 if no existing NC field found
+
     file_map = {
         "LEARNINGS.md": os.path.join(learnings_dir, "LEARNINGS.md"),
         "ERRORS.md": os.path.join(learnings_dir, "ERRORS.md"),
         "FEATURE_REQUESTS.md": os.path.join(learnings_dir, "FEATURE_REQUESTS.md"),
     }
-    updated = 0
+    loaded = {}
     for fname, fpath in file_map.items():
         if os.path.exists(fpath):
-            if update_md_file(fpath, entry_id, notified_val, nc_val, status_val):
-                print(f"Updated: {entry_id} in {fname} (status={status_val}, notified={notified_val}, nc={nc_val})", file=sys.stderr)
-                updated += 1
+            with open(fpath) as f:
+                loaded[fname] = (fpath, f.read())
+        else:
+            loaded[fname] = (fpath, None)
+
+    # Bug5 fix: when notified=1 without explicit nc → auto-increment existing NC, or default to 1
+    if notified_val == 1 and nc_val is None:
+        entry_pat = re.compile(r"## \[" + re.escape(entry_id) + r"\].+?(?=\n## \[|$)", re.DOTALL)
+        for fname, (fpath, content) in loaded.items():
+            if content is None:
+                continue
+            m = entry_pat.search(content)
+            if m and "- Notification-Count:" in m.group(0):
+                existing_nc = int(_RE_NC_EXTRACT.search(m.group(0)).group(1))
+                nc_val = existing_nc + 1
+                break
+        if nc_val is None:
+            nc_val = 1  # default to 1 if no existing NC field found
+
+    # Write all files that have the entry
+    updated = 0
+    for fname, (fpath, content) in loaded.items():
+        if content is None:
+            continue
+        entry_pat = _build_entry_pattern(entry_id)
+        m = entry_pat.search(content)
+        if not m:
+            continue
+
+        entry_start = m.start(1)
+        entry_text = m.group(1)
+        new_entry = entry_text
+
+        if status_val is not None:
+            has_bold = _RE_HAS_BOLD_STATUS.search(entry_text)
+            has_dash = _RE_HAS_DASH_STATUS.search(entry_text)
+            if has_bold:
+                new_entry = _RE_BOLD_STATUS.sub(f"**Status**: {status_val}\n", new_entry)
+            elif has_dash:
+                new_entry = _RE_DASH_STATUS.sub(f"  - Status: {status_val}", new_entry)
+            else:
+                notified_str = 'true' if notified_val == 1 else 'false' if notified_val is not None else None
+                nc_insert = f"  - Notification-Count: {nc_val}\n" if nc_val is not None else ""
+                notified_insert = f"  - Notified: {notified_str}\n" if notified_str is not None else ""
+                status_line = f"**Status**: {status_val}"
+                insert = status_line + ("\n" + notified_insert if notified_insert else "") + ("\n" + nc_insert if nc_insert else "")
+                new_entry = _RE_TITLE_ANCHOR.sub(r"\1" + insert + "\n", new_entry)
+                notified_val = None
+                nc_val = None
+
+        if notified_val is not None:
+            notified_str = 'true' if notified_val == 1 else 'false'
+            new_entry, _ = _upsert_field(
+                new_entry, _RE_NOTIFIED, notified_str,
+                [_RE_ANCHOR_BOLD, _RE_ANCHOR_DASH]
+            )
+
+        if nc_val is not None:
+            new_entry, _ = _upsert_field(
+                new_entry, _RE_NC, str(nc_val),
+                [_RE_ANCHOR_BOLD, _RE_ANCHOR_DASH]
+            )
+
+        new_content = content[:entry_start] + new_entry + content[m.end():]
+        with open(fpath, 'w') as f:
+            f.write(new_content)
+        print(f"Updated: {entry_id} in {fname} (status={status_val}, notified={notified_val}, nc={nc_val})", file=sys.stderr)
+        updated += 1
+
     print(f"write-notified: {updated} entries updated", file=sys.stderr)
     return updated
 
@@ -134,7 +195,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # ── Old mode: first positional is a .json file (archive.sh calling convention) ──
-    # Detect: endswith .json OR is an existing file with .json content
     if args[0].endswith('.json') or (os.path.isfile(args[0]) and not args[0].startswith('--')):
         json_file = args[0]
         learnings_dir = args[1] if len(args) > 1 else None
@@ -143,13 +203,11 @@ if __name__ == '__main__':
             sys.exit(1)
         with open(json_file) as f:
             data = json.load(f)
-        # Entry ID from entry_id field (new format) or pattern_name field (legacy format)
         entry_id = data.get('entry_id') or data.get('pattern_name')
         if not entry_id:
             print(f"Error: JSON has no 'pattern_name' field: {json_file}", file=sys.stderr)
             sys.exit(1)
-        # archive.sh calls to mark notified; use notification_count from JSON if present
-        nc_from_json = data.get('notification_count', 1)  # v4.6.8: read nc from JSON
+        nc_from_json = data.get('notification_count', 1)
         updated = _do_update(entry_id, learnings_dir, status_val=None, notified_val=1, nc_val=nc_from_json)
         sys.exit(0)
 

@@ -1,12 +1,22 @@
 /**
  * Self-Improvement Hook for OpenClaw
  *
- * Handles three OpenClaw event types:
- * 1. agent:bootstrap      → inject reminder file (session start)
- * 2. message:preprocessed → check for corrections/errors/feature requests + task-done reminder
+ * Handles four OpenClaw event types:
+ * 1. agent:bootstrap      → inject reminder file (session start) + reset session state
+ * 2. command:new          → reset session state (new task)
+ * 3. command:reset       → reset session state (explicit reset)
+ * 4. message:preprocessed → keyword detection + push reminders + Hermes-style self-review
  *
- * v4.6.6: Per-agent learnings isolation - routes to agent's workspace
+ * v4.7.0: Hermes-style task review — message counting + self-review prompt injection
  */
+
+// ── Imports + Config ──────────────────────────────────────────
+const { execSync } = require('child_process');
+const { existsSync, readFileSync } = require('fs');
+
+const WORKSPACE = process.env.HOME + '/.openclaw/workspace';
+const SELF_IMPROVEMENT_DIR = WORKSPACE + '/skills/self-improvement-loop/scripts';
+const MAX_MESSAGES = 10;
 
 // ── Per-agent workspace routing ──────────────────────────────
 const OPENCLAW_JSON = process.env.HOME + '/.openclaw/openclaw.json';
@@ -49,6 +59,20 @@ function getLearningsDir(sessionKey) {
   return workspace + '/.learnings';
 }
 
+// ── Script runner helper ─────────────────────────────────────
+function runScript(scriptName, agentId, ...args) {
+  const scriptPath = SELF_IMPROVEMENT_DIR + '/' + scriptName;
+  try {
+    return execSync(`bash "${scriptPath}" "${agentId}" ${args.join(' ')}`, {
+      encoding: 'utf8',
+      timeout: 5000,
+      cwd: process.env.HOME,
+    }).trim();
+  } catch (e) {
+    return '';
+  }
+}
+
 // Placeholder for runtime replacement
 const WORKSPACE_PLACEHOLDER = '{{WORKSPACE_LEARNINGS}}';
 const BOOTSTRAP_REMINDER = `
@@ -69,7 +93,7 @@ const BOOTSTRAP_REMINDER = `
 - 遇到重复 pattern → 更新 Recurrence-Count
 
 ### 格式
-写入前先参考模板的8~27行(包含所有有效 category 值和完整格式)：
+写入前先参考模板的10~25行(包含所有有效 category 值和完整格式)：
 - 纠正/洞察/最佳实践 → \`${WORKSPACE_PLACEHOLDER}/LEARNINGS.md\`
 - 命令/操作失败 → \`${WORKSPACE_PLACEHOLDER}/ERRORS.md\`
 - 功能缺失请求 → \`${WORKSPACE_PLACEHOLDER}/FEATURE_REQUESTS.md\`
@@ -83,6 +107,42 @@ const BOOTSTRAP_REMINDER = `
 
 Keep entries simple. Patterns compound — the more you log, the smarter the distill loop becomes.
 `.trim();
+
+// ── Self-review prompt generator ──────────────────────────────
+function generateSelfReviewPrompt(learningsDir) {
+  const prompt = `
+## 🪞 Self-Review — 任务回顾
+
+你刚刚完成了一段复杂交互（消息数达到阈值）。现在请回顾这次工作：
+
+### 1. 这次用了什么方法/步骤？
+（描述你解决问题的主要思路和操作序列）
+
+### 2. 有没有坑点或绕弯的地方？
+（记录遇到的错误、挫折、或不高效的地方）
+
+### 3. 下次遇到类似任务，怎么做更好？
+（提炼一条可复用的原则）
+
+### 4. 有没有值得写成技能/规则的内容？
+
+---
+
+**记录到 learnings 文件**（选择合适的一个）：
+- 洞察/最佳实践 → \`${learningsDir}/LEARNINGS.md\`
+- 命令/工具失败 → \`${learningsDir}/ERRORS.md\`
+- 功能缺失需求 → \`${learningsDir}/FEATURE_REQUESTS.md\`
+
+参考模板格式（8-27行）：ID用 \`YYYYMMDD-NNN\`，Status填 \`pending\`，Pattern-Key 用 \`<source>.<type>.<identifier>\` 格式。
+
+如果值得记录技能，请用 A/B/C/D 标记：
+- **A** = 创建新技能（用于可复用的完整工作流）
+- **B** = 优化现有技能
+- **C** = 跳过（这次不够通用）
+- **D** = 升华到 SOUL/AGENTS/TOOLS（用于行为规则/工作流/工具坑点）
+`.trim();
+  return prompt;
+}
 
 // ── Keywords ────────────────────────────────────────────────
 const CORRECTION_KEYWORDS = [
@@ -128,11 +188,15 @@ const handler = async (event) => {
   if (!event || typeof event !== 'object') return;
 
   const sessionKey = event.sessionKey || '';
+  const agentId = extractAgentId(sessionKey);
   const learningsDir = getLearningsDir(sessionKey);
   const workspace = learningsDir.replace('/.learnings', '');
 
   // ── agent:bootstrap ──────────────────────────────────────
   if (event.type === 'agent' && event.action === 'bootstrap') {
+    // Reset session state on new session
+    runScript('session_state.sh', agentId, 'reset');
+
     if (Array.isArray(event.context?.bootstrapFiles)) {
       const reminder = BOOTSTRAP_REMINDER.replace(/\{\{WORKSPACE_LEARNINGS\}\}/g, learningsDir);
       event.context.bootstrapFiles.push({
@@ -141,6 +205,12 @@ const handler = async (event) => {
         virtual: true,
       });
     }
+    return;
+  }
+
+  // ── command:new / command:reset ───────────────────────────
+  if ((event.type === 'command:new' || event.type === 'command:reset')) {
+    runScript('session_state.sh', agentId, 'reset');
     return;
   }
 
@@ -155,16 +225,31 @@ const handler = async (event) => {
 
     if (isCorrection) {
       event.context.messages?.push(
-        `[Self-Improvement] 🪝 检测到校正信号 — 考虑将这次纠正记入 \`${learningsDir}/LEARNINGS.md\`\``
+        `[Self-Improvement] 🪝 检测到校正信号 — 考虑将这次纠正记入 \`${learningsDir}/LEARNINGS.md\``
       );
     } else if (isErrorFeedback) {
       event.context.messages?.push(
-        `[Self-Improvement] 🪝 检测到错误反馈 — 考虑将问题记入 \`${learningsDir}/ERRORS.md\`\``
+        `[Self-Improvement] 🪝 检测到错误反馈 — 考虑将问题记入 \`${learningsDir}/ERRORS.md\``
       );
     } else if (isFeatureRequest) {
       event.context.messages?.push(
-        `[Self-Improvement] 🪝 检测到功能请求信号 — 考虑将需求记入 \`${learningsDir}/FEATURE_REQUESTS.md\`\``
+        `[Self-Improvement] 🪝 检测到功能请求信号 — 考虑将需求记入 \`${learningsDir}/FEATURE_REQUESTS.md\``
       );
+    } else {
+      // New user message detected → previous AI task just ended
+      // Trigger active reflection reminder (port from deprecated activator.sh)
+      event.context.messages?.push(
+        `[Self-Improvement] 🪝 上一轮任务完成 — 主动回顾：这次有没有可提取的知识？（新发现/更好的方法/隐藏假设/重复踩坑）有就写入 \`${learningsDir}/LEARNINGS.md\``
+      );
+    }
+
+    // ── Hermes-style message counting ─────────────────────
+    runScript('session_state.sh', agentId, 'inc');
+    const shouldTrigger = runScript('session_state.sh', agentId, 'should');
+    if (shouldTrigger === 'yes') {
+      runScript('session_state.sh', agentId, 'trigger');
+      const reviewPrompt = generateSelfReviewPrompt(learningsDir);
+      event.context.messages?.push(reviewPrompt);
     }
     return;
   }
