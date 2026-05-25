@@ -61,7 +61,9 @@ function getLearningsDir(sessionKey) {
 
 // ── Script runner helper ─────────────────────────────────────
 function runScript(scriptName, agentId, ...args) {
-  const scriptPath = SELF_IMPROVEMENT_DIR + '/' + scriptName;
+  const scriptPath = __dirname + '/../scripts/' + scriptName;
+  const workspace = process.env.HOME + '/.openclaw/workspace';
+  const learningsDir = workspace + '/agents/' + agentId + '/.learnings';
   const env = { ...process.env, LEARNINGS_DIR: learningsDir };
   try {
     return execSync(`bash "${scriptPath}" "${agentId}" ${args.join(' ')}`, {
@@ -190,7 +192,12 @@ const handler = async (event) => {
     if (!body || typeof body !== 'string') return;
 
     const isCorrection = containsKeyword(body, CORRECTION_KEYWORDS);
-    const isErrorFeedback = containsKeyword(body, ERROR_KEYWORDS);
+    // Filter out conversational false positives before checking error keywords
+    const falsePositiveErrorPhrases = /error handling|error_handling|\bno error\b|errors are|error rates?/i;
+    let isErrorFeedback = containsKeyword(body, ERROR_KEYWORDS);
+    if (falsePositiveErrorPhrases.test(body)) {
+      isErrorFeedback = false;
+    }
     const isFeatureRequest = containsKeyword(body, FEATURE_KEYWORDS);
 
     if (isCorrection) {
@@ -206,6 +213,15 @@ const handler = async (event) => {
         `[Self-Improvement] 🪝 检测到功能请求信号 — 考虑将需求记入 \`${learningsDir}/FEATURE_REQUESTS.md\``
       );
     }
+
+    // Periodic Nudge — inject full self-review prompt via inject_review.sh
+    const shouldNudge = runScript('session_state.sh', agentId, 'should').trim();
+    if (shouldNudge === 'yes') {
+      const reviewPrompt = generateSelfReviewPrompt(learningsDir);
+      event.context.messages?.push(reviewPrompt);
+      runScript('session_state.sh', agentId, 'trigger');
+    }
+
     // Self-review 触发由 prompt 引导（工具调用≥5 / 发现绕弯 / 预判重复）
     // 不再由 hook 计数注入
     return;

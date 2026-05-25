@@ -26,6 +26,21 @@ LEARNINGS_FILES="LEARNINGS.md ERRORS.md FEATURE_REQUESTS.md"
 
 [ "$1" = "--check-only" ] && CHECK_ONLY=true
 
+# Check for --error-mode (single-failure notification for ERRORS.md)
+ERROR_MODE=false
+for arg in "$@"; do
+  if [ "$arg" = "--error-mode" ]; then
+    ERROR_MODE=true
+  fi
+done
+
+if [ "$ERROR_MODE" = true ]; then
+  ERROR_THRESHOLD=1
+  NORMAL_THRESHOLD=$THRESHOLD  # save the normal threshold (2)
+  THRESHOLD=1  # meta.threshold=1 in error mode
+  LEARNINGS_FILES="ERRORS.md"  # metadata only
+fi
+
 # DEBUG: uncomment to see LEARNINGS_DIR
 # echo "DEBUG: LEARNINGS_DIR=$LEARNINGS_DIR" >&2
 
@@ -314,7 +329,11 @@ if [ "$CHECK_ONLY" = true ]; then
 
     # ── Step 5: 构建 JSON（v4.6.2 — 调用 Python 脚本）──────────
     DISTILL_JSON="$WORKSPACE/skills/self-improvement-loop/scripts/distill_json.py"
-    python3 "$DISTILL_JSON" "$PK_AGG" "$CAT_AGG" "$THRESHOLD"
+    if [ "$ERROR_MODE" = true ]; then
+        python3 "$DISTILL_JSON" "$PK_AGG" "$CAT_AGG" "$THRESHOLD" "$NORMAL_THRESHOLD"
+    else
+        python3 "$DISTILL_JSON" "$PK_AGG" "$CAT_AGG" "$THRESHOLD" "$THRESHOLD"
+    fi
 
     rm -f "$ALL_ENTRIES" "$PK_ENTRIES" "$CAT_ENTRIES" "$PK_AGG" "$CAT_AGG"
     exit 0

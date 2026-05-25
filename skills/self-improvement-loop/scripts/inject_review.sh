@@ -20,6 +20,7 @@ prompt = """
 请按以下格式填写，完成后：
 - 如果"技能候选"填了"有"→ 评价是否值得创建技能，值得则用 /create-skill 创建
 - 如果"技能候选"填了"无"→ 将本次回顾写入 `{ld}/LEARNINGS.md`（参考模板格式）
+- **重要**：完成回顾后，请执行 `bash <path-to-session_state.sh> <agent_id> complete` 以重置 `review_triggered=false`，确保下次阈值触发时重新提醒
 
 ```
 ## [YYYYMMDD-NNN] correction|best_practice|insight

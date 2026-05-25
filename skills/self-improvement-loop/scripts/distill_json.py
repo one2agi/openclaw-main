@@ -53,6 +53,11 @@ def check_pk_format_invalid(line, is_pk_entry):
 pk_agg_path = sys.argv[1]
 cat_agg_path = sys.argv[2]
 threshold = int(sys.argv[3])
+error_threshold = int(sys.argv[4]) if len(sys.argv) > 4 else threshold
+# Detect ERROR_MODE: if 4th arg > 3rd arg, we passed (1, 2) for ERROR_MODE
+IS_ERROR_MODE = len(sys.argv) > 4 and error_threshold > threshold
+# In ERROR_MODE: ERRORS.md uses threshold(1), others use error_threshold(2)
+# In normal mode: all use threshold(2)
 
 pk_agg = []
 cat_agg = []
@@ -80,9 +85,13 @@ for line in pk_agg:
     e = parse_pk(line)
     if not e: continue
     n_val = e["notified"]
-    trig = 1 if calc_trigger(n_val, e["nc"], e["cnt"], threshold) else 0
+    if IS_ERROR_MODE:
+        eff_threshold = threshold if e["source_file"] == "ERRORS.md" else error_threshold
+    else:
+        eff_threshold = threshold
+    trig = 1 if calc_trigger(n_val, e["nc"], e["cnt"], eff_threshold) else 0
     obj = {
-        "name": e["pk"] if e["pk"] else e["fcat"], "count": e["cnt"], "threshold_count": threshold,
+        "name": e["pk"] if e["pk"] else e["fcat"], "count": e["cnt"], "threshold_count": eff_threshold,
         "source": "pattern_key", "first_entry_id": e["fid"],
         "first_category": e["fcat"], "first_status": e["fstatus"],
         "notified": null_to_none(n_val), "notification_count": e["nc"],
@@ -91,7 +100,7 @@ for line in pk_agg:
     }
     if e["pk_stripped"]:
         obj["pk_format_invalid"] = True
-    if e["cnt"] >= threshold:
+    if e["cnt"] >= eff_threshold:
         patterns.append(obj)
     else:
         fallback.append(obj)
@@ -100,16 +109,20 @@ for line in cat_agg:
     e = parse_cat(line)
     if not e: continue
     n_val = e["notified"]
-    trig = 1 if calc_trigger(n_val, e["nc"], e["cnt"], threshold) else 0
+    if IS_ERROR_MODE:
+        eff_threshold = threshold if e["source_file"] == "ERRORS.md" else error_threshold
+    else:
+        eff_threshold = threshold
+    trig = 1 if calc_trigger(n_val, e["nc"], e["cnt"], eff_threshold) else 0
     obj = {
-        "name": e["cat"], "count": e["cnt"], "threshold_count": threshold,
+        "name": e["cat"], "count": e["cnt"], "threshold_count": eff_threshold,
         "source": "category", "first_entry_id": e["fid"],
         "first_category": e["cat"], "first_status": e["fstatus"],
         "notified": null_to_none(n_val), "notification_count": e["nc"],
         "notification_trigger": trig, "raw_md": e["fraw"],
         "first_file": e.get("source_file", "")
     }
-    if e["cnt"] >= threshold:
+    if e["cnt"] >= eff_threshold:
         patterns.append(obj)
     else:
         fallback.append(obj)
