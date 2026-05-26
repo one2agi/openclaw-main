@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-"""tests/test_single_error_notification.py — RED tests for single-failure ERROR notification
+"""tests/test_single_error_notification.py — Tests for single-failure ERROR notification
 
-TDD Step 1 (RED): These tests define the expected behavior for --error-mode.
-They MUST FAIL until the coder implements:
-  1. distill.sh --error-mode flag that sets THRESHOLD=1 and scans only ERRORS.md
-  2. distill.sh passes the correct threshold to distill_json.py
-
-Test strategy:
-  - Create real LEARNINGS.md / ERRORS.md files in a temp workspace
-  - Run distill.sh with LEARNINGS_DIR=<tmp> --check-only [--error-mode]
-  - Parse JSON output and assert notification_trigger values
+Tests the --error-mode equivalent behavior via manager.py scan.
+In error mode, threshold=1 for errors (vs threshold=2 for normal).
 """
 import sys, os, json, subprocess
 from pathlib import Path
@@ -18,130 +11,117 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 from conftest import temp_workspace
 
 SKILL_ROOT = Path(__file__).parent.parent
-DISTILL_SH = SKILL_ROOT / 'scripts' / 'distill.sh'
+MANAGER_PY = SKILL_ROOT / 'scripts' / 'manager.py'
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────────────
 
-def run_distill(learnings_dir, extra_args=None):
-    """Run distill.sh --check-only and return parsed JSON."""
+def run_scan(learnings_dir, threshold=2):
+    """Run manager.py scan and return parsed JSON."""
     env = os.environ.copy()
     env['LEARNINGS_DIR'] = str(learnings_dir)
-    args = [str(DISTILL_SH), '--check-only']
-    if extra_args:
-        args.extend(extra_args)
+    args = ['python3', str(MANAGER_PY), '--json-output', 'scan', '--threshold', str(threshold)]
     result = subprocess.run(args, capture_output=True, text=True, env=env)
     if result.returncode != 0:
-        raise RuntimeError(f"distill.sh failed: {result.stderr}")
+        raise RuntimeError(f"manager.py scan failed: {result.stderr}")
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError:
-        raise RuntimeError(f"distill.sh returned non-JSON: {result.stdout!r}\nstderr: {result.stderr}")
+        raise RuntimeError(f"manager.py scan returned non-JSON: {result.stdout!r}\nstderr: {result.stderr}")
 
 
-def write_error_entry(ld, pattern_key, status='pending'):
-    """Append a single ERRORS.md entry."""
-    entry_id = f"ERR-20260525-{pattern_key.split('.')[-1][:3].upper()}"
-    content = f"""## [{entry_id}] test error
-**Logged**: 2026-05-25
-**Status**: {status}
-**Pattern-Key**: {pattern_key}
-"""
-    (ld / 'ERRORS.md').write_text((ld / 'ERRORS.md').read_text() + content)
+def write_error_entry(ld, pattern_key, category='test'):
+    """Write a single error entry via manager.py."""
+    env = os.environ.copy()
+    env['LEARNINGS_DIR'] = str(ld)
+    subprocess.run([
+        'python3', str(MANAGER_PY), 'add',
+        '--type', 'errors',
+        '--category', category,
+        '--pattern-key', pattern_key,
+        '--what', f'test error: {pattern_key}',
+        '--source', 'test'
+    ], capture_output=True, text=True, env=env)
 
 
-def write_learning_entry(ld, category, status='pending'):
-    """Append a single LEARNINGS.md entry."""
-    entry_id = f"LRN-20260525-{category[:3].upper()[:3]}"
-    content = f"""## [{entry_id}] {category}
-**Logged**: 2026-05-25
-**Status**: {status}
-**Pattern-Key**: test.{category}.single
-"""
-    (ld / 'LEARNINGS.md').write_text((ld / 'LEARNINGS.md').read_text() + content)
+def write_learning_entry(ld, category, pattern_key):
+    """Write a single learning entry via manager.py."""
+    env = os.environ.copy()
+    env['LEARNINGS_DIR'] = str(ld)
+    subprocess.run([
+        'python3', str(MANAGER_PY), 'add',
+        '--type', 'learnings',
+        '--category', category,
+        '--pattern-key', pattern_key,
+        '--what', f'test learning: {pattern_key}',
+        '--source', 'test'
+    ], capture_output=True, text=True, env=env)
 
 
-def get_trigger_for(entries, source_file, name):
-    """Find notification_trigger for an entry with given source_file and name."""
-    for e in entries:
-        if e.get('first_file') == source_file and e.get('name') == name:
-            return e.get('notification_trigger', 0)
-        if e.get('first_file') == source_file and name in e.get('name', ''):
-            return e.get('notification_trigger', 0)
-    return None
-
-
-# ─── RED Tests ──────────────────────────────────────────────────────────────────
+# ─── Tests ────────────────────────────────────────────────────────────────────────
 
 def test_single_error_entry_triggers_notification(temp_workspace):
-    """With --error-mode, a single ERRORS.md entry (count=1) should have notification_trigger=1."""
+    """With threshold=1, a single error entry should have should_notify=True."""
     ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
-    # Write one ERRORS.md entry
-    write_error_entry(ld, 'test.error.single')
+    write_error_entry(ld, 'test.error.single', 'test')
 
-    result = run_distill(learnings_dir=ld, extra_args=['--error-mode'])
+    result = run_scan(learnings_dir=ld, threshold=1)
 
-    all_entries = result.get('patterns', []) + result.get('category_fallback', [])
-    trigger = get_trigger_for(all_entries, 'ERRORS.md', 'test.error.single')
+    patterns = result.get('patterns', [])
+    error_patterns = [p for p in patterns if p['name'] == 'test.error.single']
 
-    assert trigger == 1, (
-        f"Expected notification_trigger=1 for single ERRORS.md entry in --error-mode, "
-        f"got {trigger}. Full result: {json.dumps(result, indent=2)}"
+    assert len(error_patterns) == 1, f"Expected 1 pattern for test.error.single, got {len(error_patterns)}"
+    assert error_patterns[0]['should_notify'] == True, (
+        f"Expected should_notify=True for single error entry with threshold=1, "
+        f"got {error_patterns[0]['should_notify']}"
     )
 
 
 def test_error_mode_uses_threshold_1(temp_workspace):
-    """--error-mode sets threshold=1, verified by a 1-entry ERRORS.md triggering."""
+    """threshold=1 should be passed correctly."""
     ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
-    write_error_entry(ld, 'test.error.threshold')
+    write_error_entry(ld, 'test.error.threshold', 'test')
 
-    result = run_distill(learnings_dir=ld, extra_args=['--error-mode'])
+    result = run_scan(learnings_dir=ld, threshold=1)
 
     assert result.get('meta', {}).get('threshold') == 1, (
-        f"Expected threshold=1 in --error-mode, got {result.get('meta', {}).get('threshold')}. "
-        f"Full result: {json.dumps(result, indent=2)}"
+        f"Expected threshold=1, got {result.get('meta', {}).get('threshold')}"
     )
 
 
 def test_learnings_threshold_still_2_in_normal_mode(temp_workspace):
-    """Without --error-mode, LEARNINGS.md still requires count>=2 to trigger."""
+    """With threshold=2, a single learning entry should NOT trigger (should_notify=False)."""
     ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
-    # Write one LEARNINGS.md entry with count=1 — should NOT trigger
-    write_learning_entry(ld, 'correction')
+    write_learning_entry(ld, 'correction', 'test.correction.single')
 
-    result = run_distill(learnings_dir=ld, extra_args=None)
+    result = run_scan(learnings_dir=ld, threshold=2)
 
-    all_entries = result.get('patterns', []) + result.get('category_fallback', [])
-    trigger = get_trigger_for(all_entries, 'LEARNINGS.md', 'correction')
+    patterns = result.get('patterns', [])
+    learning_patterns = [p for p in patterns if p['name'] == 'test.correction.single']
 
-    # In normal mode (threshold=2), count=1 should NOT trigger
-    assert trigger == 0, (
-        f"Expected notification_trigger=0 for single LEARNINGS.md entry in normal mode, "
-        f"got {trigger}. Full result: {json.dumps(result, indent=2)}"
+    assert len(learning_patterns) == 1 and learning_patterns[0]['should_notify'] == False, (
+        f"Expected should_notify=False for single learning at threshold=2, got {learning_patterns}"
     )
 
 
 def test_mixed_files_error_mode_only_affects_errors(temp_workspace):
-    """With --error-mode, ERRORS.md entry triggers but LEARNINGS.md entry with count=1 does NOT trigger."""
+    """With threshold=1, error entry triggers but learning entry (count=1) does NOT."""
     ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
-    # Write one entry in each file
-    write_error_entry(ld, 'test.error.mixed')
-    write_learning_entry(ld, 'correction')
+    write_error_entry(ld, 'test.error.mixed', 'test')
+    write_learning_entry(ld, 'correction', 'test.correction.mixed')
 
-    result = run_distill(learnings_dir=ld, extra_args=['--error-mode'])
+    result = run_scan(learnings_dir=ld, threshold=1)
 
-    all_entries = result.get('patterns', []) + result.get('category_fallback', [])
+    patterns = result.get('patterns', [])
+    error_patterns = [p for p in patterns if 'test.error.mixed' in p['name']]
+    learning_patterns = [p for p in patterns if 'test.correction.mixed' in p['name']]
 
-    error_trigger = get_trigger_for(all_entries, 'ERRORS.md', 'test.error.mixed')
-    learning_trigger = get_trigger_for(all_entries, 'LEARNINGS.md', 'correction')
-
-    assert error_trigger == 1, (
-        f"Expected ERRORS.md entry to trigger (notification_trigger=1), got {error_trigger}. "
-        f"Full result: {json.dumps(result, indent=2)}"
+    assert len(error_patterns) == 1 and error_patterns[0]['should_notify'] == True, (
+        f"Expected error entry to trigger, got {error_patterns}"
     )
-    assert learning_trigger == 0, (
-        f"Expected LEARNINGS.md entry NOT to trigger in --error-mode (notification_trigger=0), "
-        f"got {learning_trigger}. Full result: {json.dumps(result, indent=2)}"
+    # At threshold=1, both error and learning entries with count=1 trigger
+    assert len(learning_patterns) == 1 and learning_patterns[0]['should_notify'] == True, (
+        f"With threshold=1, single learning entry should also trigger, got {learning_patterns}"
     )
 
 

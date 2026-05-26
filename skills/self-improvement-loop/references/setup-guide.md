@@ -12,23 +12,24 @@ Hook (handler.js) 根据 sessionKey 动态路由
 Cron job 使用 LEARNINGS_DIR 环境变量指向 agent 自己的 learnings 目录
 ```
 
-## 验证 distill（单 agent / 全局）
+## 验证 scan（单 agent / 全局）
 
 ```bash
-bash ~/.openclaw/workspace/skills/self-improvement-loop/scripts/distill.sh --check-only
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py scan
 ```
 
-正常输出 JSON，包含 `patterns` / `category_fallback` / `meta`。
+正常输出 JSON，包含 `patterns` / `meta`。
 
-## 验证 distill（指定 agent）
+## 验证 scan（指定 agent）
 
 ```bash
 # 指定 agent 工作区
-LEARNINGS_DIR="$HOME/.openclaw/workspace/code-dev/.learnings" \
-  bash ~/.openclaw/workspace/skills/self-improvement-loop/scripts/distill.sh --check-only
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/code-dev/.learnings" scan
 
 # 查看特定 agent 的 learnings
-cat ~/.openclaw/workspace/code-dev/.learnings/LEARNINGS.md
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/code-dev/.learnings" list
 ```
 
 ## 查看 Cron 状态
@@ -65,7 +66,8 @@ for a in d.get('agents', {}).get('list', []):
 
 ```bash
 # 查看某个 agent 的 learnings 是否被更新
-tail -f ~/.openclaw/workspace/code-dev/.learnings/LEARNINGS.md
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/code-dev/.learnings" list
 ```
 
 Hook 根据 sessionKey 自动路由，无需手动指定。
@@ -73,18 +75,20 @@ Hook 根据 sessionKey 自动路由，无需手动指定。
 ## 调试
 
 ```bash
-# 查看 distill JSON（pretty）
-bash ~/.openclaw/workspace/skills/self-improvement-loop/scripts/distill.sh --check-only | python3 -m json.tool
+# 查看 scan JSON（pretty）
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py scan | python3 -m json.tool
 
-# 查看某个 agent 的 distill
-LEARNINGS_DIR="$HOME/.openclaw/workspace/code-dev/.learnings" \
-  bash ~/.openclaw/workspace/skills/self-improvement-loop/scripts/distill.sh --check-only | python3 -m json.tool
+# 查看某个 agent 的 scan
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/code-dev/.learnings" scan | python3 -m json.tool
 
 # 手动触发 archive dry-run
-bash ~/.openclaw/workspace/skills/self-improvement-loop/scripts/archive.sh --dry-run
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/main/.learnings" archive --dry-run
 
-# 查看某个 agent 的 learnings 文件
-cat ~/.openclaw/workspace/main/.learnings/LEARNINGS.md
+# 查看某个 agent 的 learnings
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/main/.learnings" list
 
 # 查看 pending notifications（per-agent）
 ls ~/.openclaw/workspace/code-dev/.learnings/.pending_notifications/

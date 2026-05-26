@@ -329,8 +329,11 @@ def cmd_pending(args):
 
     if args.list:
         files = sorted(os.listdir(pending_dir))
-        for f in files:
-            print(f)
+        if files:
+            for f in files:
+                print(f)
+        else:
+            print("(empty)")
         return
 
     if args.clean:

@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""tests/test_handler_error_detection.py — TDD: RED tests for error stack trace detection"""
+"""tests/test_handler_error_detection.py — TDD: Tests for error stack trace detection in handler.js"""
 import sys, os, tempfile, subprocess, json, re
 from pathlib import Path
 
-# Add scripts dir to path for write_notified imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
-# Root of the skill
 SKILL_ROOT = Path(__file__).parent.parent
 
 
@@ -32,7 +30,6 @@ def run_handler(session_key, body_for_agent, home=None):
         home = os.environ.get('HOME', '/home/morav')
 
     handler_path = SKILL_ROOT / 'hooks' / 'handler.js'
-    # Use realpath so path.join in the script resolves correctly
     handler_path_abs = str(handler_path.resolve())
 
     script = f"""
@@ -67,11 +64,11 @@ console.log(JSON.stringify(event.context.messages));
         raise RuntimeError(f"handler.js returned non-JSON: {result.stdout!r}\nstderr: {result.stderr}")
 
 
-# ─── RED Tests ─────────────────────────────────────────────────────────────────
+# ─── Tests ────────────────────────────────────────────────────────────────────────
 
 def test_python_traceback_in_body_triggers_errors_reminder(temp_workspace):
-    """Python stack trace in bodyForAgent should push ERRORS.md reminder."""
-    home = str(temp_workspace)  # temp_workspace returns $HOME/.openclaw/workspace
+    """Python stack trace in bodyForAgent should push a reminder to learnings dir."""
+    home = str(temp_workspace)
     messages = run_handler(
         'agent:main:telegram:123',
         'Traceback (most recent call last):\n'
@@ -80,13 +77,13 @@ def test_python_traceback_in_body_triggers_errors_reminder(temp_workspace):
         'FileNotFoundError: [Errno 2] No such file or directory',
         home=home
     )
-    # Should have pushed at least one message mentioning ERRORS.md
-    error_reminders = [m for m in messages if 'ERRORS.md' in m]
-    assert len(error_reminders) >= 1, f"Expected ERRORS.md reminder, got: {messages}"
+    # v5.0.0: message mentions .learnings directory
+    error_reminders = [m for m in messages if '.learnings' in m]
+    assert len(error_reminders) >= 1, f"Expected .learnings reminder, got: {messages}"
 
 
 def test_javascript_error_in_body_triggers_errors_reminder(temp_workspace):
-    """JS/Node error in bodyForAgent should push ERRORS.md reminder."""
+    """JS/Node error in bodyForAgent should push a reminder to learnings dir."""
     home = str(temp_workspace)
     messages = run_handler(
         'agent:main:telegram:123',
@@ -95,12 +92,12 @@ def test_javascript_error_in_body_triggers_errors_reminder(temp_workspace):
         '    at Module._load (node:internal/modules/cjs/loader:1138:5)',
         home=home
     )
-    error_reminders = [m for m in messages if 'ERRORS.md' in m]
-    assert len(error_reminders) >= 1, f"Expected ERRORS.md reminder, got: {messages}"
+    error_reminders = [m for m in messages if '.learnings' in m]
+    assert len(error_reminders) >= 1, f"Expected .learnings reminder, got: {messages}"
 
 
 def test_command_failed_triggers_errors_reminder(temp_workspace):
-    """'Command failed with exit code' should trigger ERRORS.md reminder."""
+    """'Command failed with exit code' should trigger a reminder."""
     home = str(temp_workspace)
     messages = run_handler(
         'agent:main:telegram:123',
@@ -108,25 +105,19 @@ def test_command_failed_triggers_errors_reminder(temp_workspace):
         'sh: 1: gcc: not found',
         home=home
     )
-    error_reminders = [m for m in messages if 'ERRORS.md' in m]
-    assert len(error_reminders) >= 1, f"Expected ERRORS.md reminder, got: {messages}"
+    error_reminders = [m for m in messages if '.learnings' in m]
+    assert len(error_reminders) >= 1, f"Expected .learnings reminder, got: {messages}"
 
 
 def test_error_word_alone_does_not_trigger_false_positive(temp_workspace):
-    """Body containing 'error handling' / 'no error' should NOT trigger ERRORS.md reminder.
-
-    Note: 'error' alone is already in the existing ERROR_KEYWORDS list, so
-    conversational 'error' triggers the existing keyword detection. The new
-    stack-trace detection should NOT add new false positives for 'error handling'
-    style phrases.
-    """
+    """Body containing 'error handling' / 'no error' should NOT trigger false positive."""
     home = str(temp_workspace)
     messages = run_handler(
         'agent:main:telegram:123',
         'The error handling routine caught the issue and recovered gracefully.',
         home=home
     )
-    error_reminders = [m for m in messages if 'ERRORS.md' in m]
+    error_reminders = [m for m in messages if '.learnings' in m]
     assert len(error_reminders) == 0, f"False positive — 'error handling' triggered: {messages}"
 
 
@@ -138,7 +129,7 @@ def test_no_error_triggers_nothing(temp_workspace):
         'Hello, can you help me with a Python script?',
         home=home
     )
-    error_reminders = [m for m in messages if 'ERRORS.md' in m]
+    error_reminders = [m for m in messages if '.learnings' in m]
     assert len(error_reminders) == 0, f"No error reminders expected, got: {messages}"
 
 
@@ -155,20 +146,17 @@ def test_multiple_error_patterns_same_body_triggers_once(temp_workspace):
         'ValueError: bad',
         home=home
     )
-    error_reminders = [m for m in messages if 'ERRORS.md' in m]
+    error_reminders = [m for m in messages if '.learnings' in m]
     assert len(error_reminders) == 1, f"Expected 1 reminder, got {len(error_reminders)}: {messages}"
 
 
 def test_per_agent_routing_injects_correct_learnings_dir(temp_workspace):
     """Reminder should contain the agent-specific learnings path, not a hardcoded one."""
     agent_id = 'my-agent'
-    # Create the agent's own workspace at expected path
     agent_ws = temp_workspace / agent_id
     agent_ld = agent_ws / '.learnings'
     agent_ld.mkdir(parents=True, exist_ok=True)
-    for fname in ("LEARNINGS.md", "ERRORS.md"):
-        (agent_ld / fname).write_text("")
-    # Write openclaw.json at the standard location: HOME/.openclaw/openclaw.json
+
     oc_json = temp_workspace / '.openclaw' / 'openclaw.json'
     oc_json.parent.mkdir(parents=True, exist_ok=True)
     oc_json.write_text(json.dumps({
@@ -180,9 +168,8 @@ def test_per_agent_routing_injects_correct_learnings_dir(temp_workspace):
         'Traceback (most recent call last):\n  File "x.py", line 1\n  RuntimeError: test',
         home=str(temp_workspace)
     )
-    error_reminders = [m for m in messages if 'ERRORS.md' in m]
+    error_reminders = [m for m in messages if '.learnings' in m]
     assert len(error_reminders) >= 1, f"No reminder: {messages}"
-    # The path should reference the agent-specific workspace
     reminder = error_reminders[0]
     assert agent_id in reminder or str(agent_ld) in reminder, \
         f"Reminder should reference agent-specific path, got: {reminder}"

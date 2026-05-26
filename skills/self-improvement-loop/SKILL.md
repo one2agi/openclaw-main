@@ -1,8 +1,9 @@
 ---
 name: self-improvement-loop
-version: 4.6.13
+version: 5.0.0
 description: |
   Per-agent feedback loop for OpenClaw — captures corrections/errors/features, detects patterns per agent workspace, notifies via per-agent channel bot, and executes A/B/C/D decisions in the correct agent session.
+  v5.0.0: JSONL-based storage, manager.py unified interface for 100% machine determinism.
   Auto-detects agents from openclaw.json, auto-maps agent ID → channel account → bindings.
   A/B/C/D handling logic lives in scripts/agents-append.md (shared); install.sh injects a reference into each agent's AGENTS.md and memory.md.
 ---
@@ -85,9 +86,9 @@ openclaw.json (agents.list + bindings)
 
 | Permission    | Scope                        | Purpose                                            |
 |---------------|------------------------------|----------------------------------------------------|
-| `exec`        | `scripts/`                  | Run distill.sh, archive.sh (mechanical scan/archive) |
-| `read`        | `<agent>/workspace/.learnings/` | Read LEARNINGS.md, ERRORS.md, FEATURE_REQUESTS.md |
-| `write`       | `<agent>/workspace/.learnings/` | Update notified status; create `.pending_notifications/*.json` |
+| `exec`        | `scripts/`                  | Run manager.py (unified data management) |
+| `read`        | `<agent>/workspace/.learnings/` | Read learnings.jsonl, errors.jsonl, features.jsonl |
+| `write`       | `<agent>/workspace/.learnings/` | Append entries via manager.py |
 | `cron`        | Global                      | Create and manage self-improvement-{agent} cron jobs |
 | `gateway_api` | Gateway :18789              | setup_crons.py calls API to create crons           |
 | `openclaw.json` | `HOME/.openclaw/`         | install.sh reads agent config; writes bindings     |
@@ -106,7 +107,7 @@ openclaw.json (agents.list + bindings)
 | Component           | Type          | Routing Basis                        |
 |---------------------|---------------|--------------------------------------|
 | `handler.js`        | Global Hook   | sessionKey → agent ID → workspace    |
-| `distill.sh`        | Shared Script | `LEARNINGS_DIR` environment variable |
+| `manager.py`        | Unified CLI   | `LEARNINGS_DIR` env / `--learnings-dir` flag |
 | `setup_crons.py`    | Shared Script | agent config → cron --agent flag     |
 | `install.sh`        | Install Script| agents.list + accounts → bindings     |
 | `agents-append.md`   | A/B/C/D Logic | Shared across agents; install.sh injects index reference |
@@ -150,9 +151,13 @@ python3 -c "import json; print(json.dumps(json.load(open('$HOME/.openclaw/opencl
 # Check per-agent crons
 openclaw cron list | grep self-improvement
 
-# Test distill (specific agent)
-LEARNINGS_DIR="$HOME/.openclaw/workspace/agents/code-dev/.learnings" \
-  bash ~/.openclaw/workspace/skills/self-improvement-loop/scripts/distill.sh --check-only
+# Test manager.py (specific agent)
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/agents/code-dev/.learnings" list
+
+# Scan patterns
+python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+  --learnings-dir "$HOME/.openclaw/workspace/agents/code-dev/.learnings" scan
 ```
 
 ---
@@ -162,7 +167,7 @@ LEARNINGS_DIR="$HOME/.openclaw/workspace/agents/code-dev/.learnings" \
 | Dependency        | Version   | Purpose                                |
 |-------------------|-----------|----------------------------------------|
 | OpenClaw          | ≥2026.4   | Platform foundation                    |
-| Python3           | ≥3.8      | distill_json.py, write_notified.py     |
+| Python3           | ≥3.8      | manager.py (unified data management)  |
 | Node.js           | any       | handler.js                             |
 | skill-creator     | any       | Path A - create skills                 |
 | skill-improvement | any       | Path B - improve skills                |
@@ -172,9 +177,31 @@ LEARNINGS_DIR="$HOME/.openclaw/workspace/agents/code-dev/.learnings" \
 ## Limitations & Known Issues
 
 - **ACP runtime agent (claude)**: No independent channel, falls back to `defaultAccount`
-- **API (Gateway)**: API unreachable (404), falls back to CLI for cron creation, sessionTarget downgraded to isolated
 - **Concurrent notifications**: When multiple agents trigger simultaneously, user replies may route to wrong agent session
 - **sessionTarget=current**: Requires Gateway API support, currently unavailable
+
+## Data Storage (v5.0.0)
+
+v5.0.0 uses JSONL-based storage for 100% machine determinism:
+
+```
+~/.openclaw/workspace/agents/{agent-id}/.learnings/
+├── learnings.jsonl   # Append-only entries
+├── errors.jsonl     # Append-only entries
+├── features.jsonl   # Append-only entries
+└── archive/
+    └── {YYYY-MM}.jsonl  # Archived entries
+```
+
+All data operations go through `manager.py`:
+```bash
+manager.py add --type learnings --category correction --what "..."
+manager.py list --type learnings --status pending
+manager.py scan --threshold 2
+manager.py update <id> --status resolved
+manager.py notify <id>
+manager.py archive
+```
 
 ---
 

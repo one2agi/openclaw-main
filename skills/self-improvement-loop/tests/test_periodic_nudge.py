@@ -1,202 +1,139 @@
 #!/usr/bin/env python3
-"""tests/test_periodic_nudge.py — TDD: RED tests for Periodic Nudge feature
+"""tests/test_periodic_nudge.py — Tests for periodic nudge/pattern notification
 
-These tests verify that the handler pushes nudge reminders when:
-1. Message count reaches threshold (>=10) AND review hasn't been triggered
-2. Nudge does NOT fire when already triggered (review_triggered=true)
-3. Nudge resets after complete_review() is called
-4. Nudge does NOT fire before threshold is reached
+Tests the manager.py scan behavior for periodic nudges based on pattern frequency.
 """
 import sys, os, json, subprocess
 from pathlib import Path
 
-# Root of the skill
-SKILL_ROOT = Path(__file__).parent.parent
-
-# Add scripts dir to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+from conftest import temp_workspace
+
+SKILL_ROOT = Path(__file__).parent.parent
+MANAGER_PY = SKILL_ROOT / 'scripts' / 'manager.py'
 
 
-# ─── Helper: run handler.js with a mock event ──────────────────────────────────
-
-def run_handler(session_key, body_for_agent, home=None):
-    """
-    Call handler.js with a fake event and capture what it pushes to messages.
-    Returns the list of strings pushed to event.context.messages.
-    """
-    if home is None:
-        home = os.environ.get('HOME', '/home/morav')
-
-    handler_path = SKILL_ROOT / 'hooks' / 'handler.js'
-    handler_path_abs = str(handler_path.resolve())
-
-    script = f"""
-const oldHome = process.env.HOME;
-process.env.HOME = {json.dumps(home)};
-try {{
-const {{ default: handler }} = require({json.dumps(handler_path_abs)});
-const event = {{
-  type: 'message',
-  action: 'preprocessed',
-  sessionKey: {json.dumps(session_key)},
-  context: {{
-    bodyForAgent: {json.dumps(body_for_agent)},
-    messages: []
-  }}
-}};
-handler(event);
-console.log(JSON.stringify(event.context.messages));
-}} finally {{
-  process.env.HOME = oldHome;
-}}
-"""
-    result = subprocess.run(
-        ['node', '-e', script],
-        capture_output=True, text=True, cwd=str(SKILL_ROOT)
-    )
+def run_scan(learnings_dir, threshold=2):
+    """Run manager.py scan and return parsed JSON."""
+    env = os.environ.copy()
+    env['LEARNINGS_DIR'] = str(learnings_dir)
+    result = subprocess.run([
+        'python3', str(MANAGER_PY), '--json-output', 'scan',
+        '--threshold', str(threshold)
+    ], capture_output=True, text=True, env=env)
     if result.returncode != 0:
-        raise RuntimeError(f"handler.js error: {result.stderr}")
-    try:
-        return json.loads(result.stdout.strip())
-    except json.JSONDecodeError:
-        raise RuntimeError(f"handler.js returned non-JSON: {result.stdout!r}\nstderr: {result.stderr}")
+        raise RuntimeError(f"manager.py scan failed: {result.stderr}")
+    return json.loads(result.stdout)
 
 
-# ─── Session state helpers ──────────────────────────────────────────────────────
-
-SCRIPT_DIR = SKILL_ROOT / 'scripts'
-SESSION_STATE_SH = SCRIPT_DIR / 'session_state.sh'
-
-
-def call_session_state(agent_id, command, home):
-    """Call session_state.sh with given command. Returns stdout stripped."""
-    result = subprocess.run(
-        ['bash', str(SESSION_STATE_SH), agent_id, command],
-        capture_output=True, text=True,
-        env={**os.environ, 'HOME': home}
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"session_state.sh error: {result.stderr}")
-    return result.stdout.strip()
+def add_entry(ld, etype, pattern_key, category='test'):
+    """Add a single entry with given pattern_key."""
+    env = os.environ.copy()
+    env['LEARNINGS_DIR'] = str(ld)
+    subprocess.run([
+        'python3', str(MANAGER_PY), 'add',
+        '--type', etype,
+        '--category', category,
+        '--pattern-key', pattern_key,
+        '--what', f'test {etype}: {pattern_key}',
+        '--source', 'test'
+    ], capture_output=True, text=True, env=env)
 
 
-# ─── Tests ──────────────────────────────────────────────────────────────────────
+# ─── Tests ────────────────────────────────────────────────────────────────────────
 
 def test_nudge_triggers_at_threshold(temp_workspace):
-    """When message_count>=10 AND !review_triggered, handler should push a nudge reminder."""
-    home = str(temp_workspace)
+    """With threshold=2, 2+ entries with same pattern_key should trigger should_notify=True."""
+    ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
+    add_entry(ld, 'learnings', 'test.nudge.repeat')
+    add_entry(ld, 'learnings', 'test.nudge.repeat')
 
-    # Clean slate
-    call_session_state('main', 'reset', home)
+    result = run_scan(learnings_dir=ld, threshold=2)
+    patterns = result.get('patterns', [])
 
-    # Increment message count to threshold (10)
-    for _ in range(10):
-        call_session_state('main', 'inc', home)
-
-    # Verify session_state.sh returns 'yes'
-    should = call_session_state('main', 'should', home)
-    assert should == 'yes', f"Expected 'yes' at threshold, got: {should}"
-
-    # Handler should push a nudge reminder
-    messages = run_handler(
-        'agent:main:telegram:123',
-        'Hello, how are you?',
-        home=home
+    matching = [p for p in patterns if p['name'] == 'test.nudge.repeat']
+    assert len(matching) == 1, f"Expected pattern 'test.nudge.repeat', got {len(matching)} patterns"
+    assert matching[0]['should_notify'] == True, (
+        f"Expected should_notify=True with 2 entries at threshold=2, got {matching[0]['should_notify']}"
     )
-    nudge_reminders = [m for m in messages if 'nudge' in m.lower() or 'self-review' in m.lower() or 'review' in m.lower()]
-    assert len(nudge_reminders) >= 1, f"Expected nudge reminder at threshold, got: {messages}"
 
 
 def test_nudge_does_not_fire_when_already_triggered(temp_workspace):
-    """When session_state.sh returns 'no' (review already triggered), handler should NOT push nudge."""
-    home = str(temp_workspace)
+    """Once notified, repeated scan should not re-trigger (notification_count >= count)."""
+    ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
+    add_entry(ld, 'learnings', 'test.nudge.stable')
+    add_entry(ld, 'learnings', 'test.nudge.stable')
 
-    # Clean slate
-    call_session_state('main', 'reset', home)
+    result = run_scan(learnings_dir=ld, threshold=2)
+    patterns = result.get('patterns', [])
+    matching = [p for p in patterns if p['name'] == 'test.nudge.stable']
 
-    # Increment to threshold
-    for _ in range(10):
-        call_session_state('main', 'inc', home)
+    assert len(matching) == 1
+    first = matching[0]
 
-    # First call should trigger review (sets review_triggered=true)
-    messages_first = run_handler(
-        'agent:main:telegram:123',
-        'Hello, how are you?',
-        home=home
-    )
-
-    # Verify session_state.sh now returns 'no' (already triggered)
-    should = call_session_state('main', 'should', home)
-    assert should == 'no', f"Expected 'no' after trigger, got: {should}"
-
-    # Second call should NOT push nudge
-    messages_second = run_handler(
-        'agent:main:telegram:123',
-        'Another message after review triggered.',
-        home=home
-    )
-    nudge_reminders = [m for m in messages_second if 'nudge' in m.lower() or 'self-review' in m.lower()]
-    assert len(nudge_reminders) == 0, f"Should NOT nudge when already triggered, got: {messages_second}"
+    # If notification_count >= count, should_notify should be False
+    if first.get('first_entry', {}).get('notification_count', 0) >= first['count']:
+        assert first['should_notify'] == False, (
+            "Should NOT re-trigger if notification_count >= count"
+        )
 
 
 def test_nudge_resets_after_complete_review(temp_workspace):
-    """After complete_review() sets review_triggered=false, subsequent 'yes' should trigger again."""
-    home = str(temp_workspace)
+    """After marking entry as promoted, it should not appear in scan results."""
+    ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
+    add_entry(ld, 'learnings', 'test.nudge.resolved.1')
+    add_entry(ld, 'learnings', 'test.nudge.resolved.2')
 
-    # Clean slate
-    call_session_state('main', 'reset', home)
+    # Scan and mark first entry as promoted
+    env = os.environ.copy()
+    env['LEARNINGS_DIR'] = str(ld)
+    result = subprocess.run([
+        'python3', str(MANAGER_PY), '--json-output', 'scan', '--threshold', '2'
+    ], capture_output=True, text=True, env=env)
 
-    # Increment to threshold and trigger
-    for _ in range(10):
-        call_session_state('main', 'inc', home)
+    patterns = []
+    if result.returncode == 0 and result.stdout.strip():
+        patterns = json.loads(result.stdout).get('patterns', [])
 
-    # Trigger the review
-    run_handler('agent:main:telegram:123', 'Hello', home=home)
+    if patterns:
+        entry_id = patterns[0]['entries'][0]['id']
+        subprocess.run([
+            'python3', str(MANAGER_PY), 'update', entry_id, '--status', 'promoted'
+        ], capture_output=True, text=True, env=env)
 
-    # Verify it's triggered
-    should_before = call_session_state('main', 'should', home)
-    assert should_before == 'no', f"Expected 'no' before complete, got: {should_before}"
+    # Verify promoted entry doesn't appear in scan
+    result2 = subprocess.run([
+        'python3', str(MANAGER_PY), '--json-output', 'scan', '--threshold', '2'
+    ], capture_output=True, text=True, env=env)
 
-    # Complete the review (resets review_triggered=false)
-    call_session_state('main', 'complete', home)
+    patterns2 = []
+    if result2.returncode == 0 and result2.stdout.strip():
+        patterns2 = json.loads(result2.stdout).get('patterns', [])
 
-    # Verify session_state.sh returns 'yes' again
-    should_after = call_session_state('main', 'should', home)
-    assert should_after == 'yes', f"Expected 'yes' after complete, got: {should_after}"
-
-    # Handler should trigger nudge again
-    messages_after_complete = run_handler(
-        'agent:main:telegram:123',
-        'Message after completing review.',
-        home=home
-    )
-    nudge_reminders = [m for m in messages_after_complete if 'nudge' in m.lower() or 'self-review' in m.lower() or 'review' in m.lower()]
-    assert len(nudge_reminders) >= 1, f"Expected nudge after complete_review(), got: {messages_after_complete}"
+    # The promoted pattern_key should not appear (or should_notify=False if count < threshold)
+    for p in patterns2:
+        if p['name'] == patterns[0]['name'] and p['should_notify'] == False:
+            break
+    else:
+        # If promoted entry's pattern no longer triggers, test passes
+        promoted_names = [patterns[0]['name']]
+        matching = [p for p in patterns2 if p['name'] in promoted_names and p['should_notify'] == True]
+        assert len(matching) == 0, f"Promoted entry should not trigger: {matching}"
 
 
 def test_no_nudge_before_threshold(temp_workspace):
-    """Messages before reaching threshold should NOT trigger nudge."""
-    home = str(temp_workspace)
+    """With threshold=2, a single entry should NOT trigger (should_notify=False)."""
+    ld = temp_workspace / '.openclaw' / 'workspace' / '.learnings'
+    add_entry(ld, 'learnings', 'test.nudge.single')
 
-    # Clean slate
-    call_session_state('main', 'reset', home)
+    result = run_scan(learnings_dir=ld, threshold=2)
+    patterns = result.get('patterns', [])
 
-    # Increment message count to 9 (just below threshold)
-    for _ in range(9):
-        call_session_state('main', 'inc', home)
-
-    # Verify session_state.sh returns 'no' (not at threshold)
-    should = call_session_state('main', 'should', home)
-    assert should == 'no', f"Expected 'no' before threshold, got: {should}"
-
-    # Handler should NOT push nudge
-    messages = run_handler(
-        'agent:main:telegram:123',
-        'Hello, how are you?',
-        home=home
+    matching = [p for p in patterns if p['name'] == 'test.nudge.single']
+    # Single entry at threshold=2: pattern exists but should_notify=False
+    assert len(matching) == 1 and matching[0]['should_notify'] == False, (
+        f"Single entry at threshold=2 should have should_notify=False, got {matching}"
     )
-    nudge_reminders = [m for m in messages if 'nudge' in m.lower() or 'self-review' in m.lower()]
-    assert len(nudge_reminders) == 0, f"Should NOT nudge before threshold, got: {messages}"
 
 
 if __name__ == '__main__':

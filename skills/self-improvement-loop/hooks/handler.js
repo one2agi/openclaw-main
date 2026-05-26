@@ -12,10 +12,11 @@
 
 // ── Imports + Config ──────────────────────────────────────────
 const { execSync } = require('child_process');
-const { existsSync, readFileSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync, unlinkSync } = require('fs');
 
 const WORKSPACE = process.env.HOME + '/.openclaw/workspace';
 const SELF_IMPROVEMENT_DIR = WORKSPACE + '/skills/self-improvement-loop/scripts';
+const MANAGER_PY = SELF_IMPROVEMENT_DIR + '/manager.py';
 const MAX_MESSAGES = 10;
 
 // ── Per-agent workspace routing ──────────────────────────────
@@ -200,17 +201,31 @@ const handler = async (event) => {
     }
     const isFeatureRequest = containsKeyword(body, FEATURE_KEYWORDS);
 
-    if (isCorrection) {
+    if (isCorrection || isErrorFeedback || isFeatureRequest) {
+      const entryData = {
+        type: isCorrection ? 'learnings' : isErrorFeedback ? 'errors' : 'features',
+        category: isCorrection ? 'correction' : isErrorFeedback ? 'error' : 'feature_request',
+        what_happened: body.substring(0, 500),
+        source: 'human_correction'
+      };
+
+      // 写入临时 JSON 文件并调用 manager.py add
+      const tmpFile = `/tmp/si-${Date.now()}.json`;
+      try {
+        writeFileSync(tmpFile, JSON.stringify(entryData));
+        execSync(`python3 "${MANAGER_PY}" add --json "${tmpFile}" --learnings-dir "${learningsDir}"`, {
+          encoding: 'utf8',
+          timeout: 5000,
+          stdio: 'ignore'
+        });
+      } catch (e) {
+        // 静默失败，不阻断主流程
+      } finally {
+        try { unlinkSync(tmpFile); } catch (e) {}
+      }
+
       event.context.messages?.push(
-        `[Self-Improvement] 🪝 检测到校正信号 — 考虑将这次纠正记入 \`${learningsDir}/LEARNINGS.md\``
-      );
-    } else if (isErrorFeedback) {
-      event.context.messages?.push(
-        `[Self-Improvement] 🪝 检测到错误反馈 — 考虑将问题记入 \`${learningsDir}/ERRORS.md\``
-      );
-    } else if (isFeatureRequest) {
-      event.context.messages?.push(
-        `[Self-Improvement] 🪝 检测到功能请求信号 — 考虑将需求记入 \`${learningsDir}/FEATURE_REQUESTS.md\``
+        `[Self-Improvement] 🪝 已记录到 ${learningsDir}`
       );
     }
 
