@@ -4,6 +4,10 @@
     "last30days-official": {
       "version": "3.1.0-open",
       "installedAt": 1778182603519
+    },
+    "gog": {
+      "version": "1.0.0",
+      "installedAt": 1779725263786
     }
   }
 }

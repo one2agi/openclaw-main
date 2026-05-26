@@ -1,13 +1,13 @@
 ---
 name: self-improvement-loop
-version: 5.0.0
+version: 4.6.13
 description: |
-  Per-agent feedback loop for OpenClaw — captures corrections/errors/features to JSONL storage, detects patterns per agent workspace, notifies via per-agent channel bot, and executes A/B/C/D decisions in the correct agent session.
+  Per-agent feedback loop for OpenClaw — captures corrections/errors/features, detects patterns per agent workspace, notifies via per-agent channel bot, and executes A/B/C/D decisions in the correct agent session.
   Auto-detects agents from openclaw.json, auto-maps agent ID → channel account → bindings.
-  All management via manager.py (add/distill/update/archive/state); no shell scripts.
+  A/B/C/D handling logic lives in scripts/agents-append.md (shared); install.sh injects a reference into each agent's AGENTS.md and memory.md.
 ---
 
-# self-improvement-loop v5.0.0
+# self-improvement-loop v4.6.13
 
 ## Overview
 
@@ -32,17 +32,16 @@ User replies A → code-dev agent session executes → writes back to code-dev w
 ```
 openclaw.json (agents.list + bindings)
     │
-    ├─→ manager.py reads agents
+    ├─→ install.sh reads agents
     │         ↓
     │    Creates per-agent directories (e.g., agents/workspace/.learnings/)
-    │    Initializes learn.jsonl + archive/ subdirectory
     │
-    ├─→ manager.py reads channel accounts
+    ├─→ install.sh reads channel accounts
     │         ↓
     │    Writes bindings (agentId → accountId)
     │    { "agentId": "code-dev", "match": { "channel": "telegram", "accountId": "code" } }
     │
-    └─→ manager.py creates per-agent cron
+    └─→ setup_crons.py creates per-agent cron
               ↓
          Each cron carries --agent flag
          LEARNINGS_DIR points to that agent's workspace
@@ -86,12 +85,12 @@ openclaw.json (agents.list + bindings)
 
 | Permission    | Scope                        | Purpose                                            |
 |---------------|------------------------------|----------------------------------------------------|
-| `exec`        | `manager.py`                | Run manager.py (add/distill/update/archive/state) |
-| `read`        | `<agent>/workspace/.learnings/` | Read learn.jsonl, archive files                 |
+| `exec`        | `scripts/`                  | Run distill.sh, archive.sh (mechanical scan/archive) |
+| `read`        | `<agent>/workspace/.learnings/` | Read LEARNINGS.md, ERRORS.md, FEATURE_REQUESTS.md |
 | `write`       | `<agent>/workspace/.learnings/` | Update notified status; create `.pending_notifications/*.json` |
 | `cron`        | Global                      | Create and manage self-improvement-{agent} cron jobs |
-| `gateway_api` | Gateway :18789              | manager.py calls API to create crons              |
-| `openclaw.json` | `HOME/.openclaw/`         | manager.py reads agent config; writes bindings     |
+| `gateway_api` | Gateway :18789              | setup_crons.py calls API to create crons           |
+| `openclaw.json` | `HOME/.openclaw/`         | install.sh reads agent config; writes bindings     |
 
 **Security Boundaries**:
 
@@ -107,9 +106,10 @@ openclaw.json (agents.list + bindings)
 | Component           | Type          | Routing Basis                        |
 |---------------------|---------------|--------------------------------------|
 | `handler.js`        | Global Hook   | sessionKey → agent ID → workspace    |
-| `manager.py`        | Shared Script | add/distill/update/archive/state     |
+| `distill.sh`        | Shared Script | `LEARNINGS_DIR` environment variable |
+| `setup_crons.py`    | Shared Script | agent config → cron --agent flag     |
 | `install.sh`        | Install Script| agents.list + accounts → bindings     |
-| `learn.jsonl.example` | Example     | JSONL format for learn.jsonl         |
+| `agents-append.md`   | A/B/C/D Logic | Shared across agents; install.sh injects index reference |
 
 ---
 
@@ -122,7 +122,7 @@ openclaw gateway restart
 
 Installation automatically:
 
-1. Creates `.learnings/` directories for each agent (with learn.jsonl + archive/)
+1. Creates `.learnings/` directories for each agent
 2. Installs hook and scripts
 3. Creates per-agent cron jobs
 4. Updates `openclaw.json` bindings (enables message routing)
@@ -150,8 +150,9 @@ python3 -c "import json; print(json.dumps(json.load(open('$HOME/.openclaw/opencl
 # Check per-agent crons
 openclaw cron list | grep self-improvement
 
-# Test distill via manager.py
-python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py distill --agent code-dev
+# Test distill (specific agent)
+LEARNINGS_DIR="$HOME/.openclaw/workspace/agents/code-dev/.learnings" \
+  bash ~/.openclaw/workspace/skills/self-improvement-loop/scripts/distill.sh --check-only
 ```
 
 ---
@@ -161,7 +162,7 @@ python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py di
 | Dependency        | Version   | Purpose                                |
 |-------------------|-----------|----------------------------------------|
 | OpenClaw          | ≥2026.4   | Platform foundation                    |
-| Python3           | ≥3.8      | manager.py                             |
+| Python3           | ≥3.8      | distill_json.py, write_notified.py     |
 | Node.js           | any       | handler.js                             |
 | skill-creator     | any       | Path A - create skills                 |
 | skill-improvement | any       | Path B - improve skills                |
