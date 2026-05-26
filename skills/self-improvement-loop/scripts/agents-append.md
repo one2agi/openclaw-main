@@ -13,6 +13,14 @@
 - `C` / `c` — 跳过
 - `D` / `d` — 升华到 SOUL/AGENTS/TOOLS
 
+### 执行前准备
+
+在执行 A/B/C/D 前：
+1. 扫描 `${LEARNINGS_DIR}/.pending_notifications/` 下的所有 .json 文件
+2. 读取每个 pattern 对应的 `.analysis.json` 文件（与 JSON 同名，如 `xxx.json` → `xxx.analysis.json`）
+3. 参考 `analysis.suggested_action` 和 `analysis.related_skills`
+4. 如果 analysis 中有 `skill_candidates`，优先使用
+
 ### 执行逻辑（批量处理 — 一次处理所有 pattern）
 
 **核心改动**：收到 A/B/C/D 后，处理完当前 pattern，继续扫描 `pending_notifications/` 目录下**所有**其他 JSON 文件，逐条处理，防止孤儿文件。
@@ -32,11 +40,11 @@ done
 1. 扫描 `${LEARNINGS_DIR}/.pending_notifications/` 下的所有 .json 文件
 2. 读取每个 pattern 的 raw_md，理解要创建什么技能
 3. 调用 skill-creator，根据该 pattern 上下文创建新技能。
-4. 执行完成后，调用脚本更新 learnings 条目为 `resolved`：
+4. 执行完成后，调用 manager.py 更新 learnings 条目为 `resolved`：
    ```bash
-   LEARNINGS_DIR="<agent_workspace>/.learnings" \
-   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/write_notified.py \
-     --status resolved <entry_id>
+   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+     --learnings-dir "<agent_workspace>/.learnings" \
+     update <entry_id> --status resolved
    ```
 5. 删除已处理的 JSON 文件
 
@@ -44,21 +52,25 @@ done
 
 1. 扫描所有 pending JSON，读 raw_md，理解要优化哪个 skill、为什么
 2. 主代理直接调用 skill-improvement 对目标技能进行优化。
-3. 执行完成后，调用脚本更新 learnings 条目为 `resolved`：
+3. 执行完成后，调用 manager.py 更新 learnings 条目为 `resolved`：
    ```bash
-   LEARNINGS_DIR="<agent_workspace>/.learnings" \
-   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/write_notified.py \
-     --status resolved <entry_id>
+   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+     --learnings-dir "<agent_workspace>/.learnings" \
+     update <entry_id> --status resolved
    ```
 4. 删除已处理的 JSON 文件
 
 **收到 C：**
 
-1. 调用脚本标记 pattern 为 dormant（不再通知）+ Notified=true（已处理过）：
+1. 调用 manager.py 标记 pattern 为 dormant（不再通知）+ Notified=true（已处理过）：
    ```bash
-   LEARNINGS_DIR="<agent_workspace>/.learnings" \
-   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/write_notified.py \
-     --status dormant --notified 1 <entry_id>
+   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+     --learnings-dir "<agent_workspace>/.learnings" \
+     update <entry_id> --status dormant
+   # 然后
+   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+     --learnings-dir "<agent_workspace>/.learnings" \
+     notify <entry_id>
    ```
 2. 静默，不发送任何消息
 
@@ -70,11 +82,11 @@ done
    - 行为/风格规则 → SOUL.md
    - 工作流/过程规则 → AGENTS.md
    - 工具坑点 → TOOLS.md
-4. 调用脚本更新 learnings 条目为 `promoted`：
+4. 调用 manager.py 更新 learnings 条目为 `promoted`：
    ```bash
-   LEARNINGS_DIR="<agent_workspace>/.learnings" \
-   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/write_notified.py \
-     --status promoted <entry_id>
+   python3 ~/.openclaw/workspace/skills/self-improvement-loop/scripts/manager.py \
+     --learnings-dir "<agent_workspace>/.learnings" \
+     update <entry_id> --status promoted
    ```
 5. 删除已处理的 pending JSON 文件
 
