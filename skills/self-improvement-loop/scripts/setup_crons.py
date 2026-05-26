@@ -329,39 +329,48 @@ def inject_learnings_dir(message, learnings_dir):
     """Inject LEARNINGS_DIR into all per-agent commands in the cron message.
 
     Handles:
-    1. distill.sh --check-only (standalone and with output redirect)
-    2. archive.sh --write-notified (needs LEARNINGS_DIR env var)
-    3. PENDING_DIR (needs to be per-agent)
+    1. manager.py scan --trigger-only
+    2. manager.py archive
+    3. manager.py notify
+    4. PENDING_DIR (needs to be per-agent)
     """
     import re
 
-    # 1. distill.sh commands - add LEARNINGS_DIR prefix
-    # Matches: bash ~/.openclaw/.../distill.sh --check-only [> ...]
-    pattern = r'(bash [^\s]+distill\.sh --check-only(?: > [^\n]+)?)'
+    # 1. manager.py scan commands - add LEARNINGS_DIR prefix
+    # Matches: bash ~/.openclaw/.../manager.py scan --trigger-only
+    pattern = r'(bash [^\s]+manager\.py scan --trigger-only)'
 
-    def replace_with_env(match):
-        cmd = match.group(1)
-        return f'LEARNINGS_DIR="{learnings_dir}" {cmd}'
+    def replace_scan(match):
+        return f'LEARNINGS_DIR="{learnings_dir}" {match.group(1)}'
 
-    message = re.sub(pattern, replace_with_env, message)
+    message = re.sub(pattern, replace_scan, message)
 
-    # 2. archive.sh - needs LEARNINGS_DIR
-    # Matches: bash ~/.openclaw/.../archive.sh --write-notified
-    pattern2 = r'(bash [^\s]+archive\.sh --write-notified)'
+    # 2. manager.py archive - needs LEARNINGS_DIR
+    # Matches: bash ~/.openclaw/.../manager.py archive
+    pattern2 = r'(bash [^\s]+manager\.py archive)'
 
     def replace_archive(match):
-        cmd = match.group(1)
-        return f'LEARNINGS_DIR="{learnings_dir}" {cmd}'
+        return f'LEARNINGS_DIR="{learnings_dir}" {match.group(1)}'
 
     message = re.sub(pattern2, replace_archive, message)
 
-    # 3. PENDING_DIR - per-agent path
-    # Changes: PENDING_DIR="~/.openclaw/workspace/.learnings/.pending_notifications"
-    # To: PENDING_DIR="~/.openclaw/workspace/agents/code-dev/.learnings/.pending_notifications"
-    pending_dir = f'"{learnings_dir}/.pending_notifications"'
+    # 3. manager.py notify - needs LEARNINGS_DIR
+    pattern3 = r'(bash [^\s]+manager\.py notify)'
+
+    def replace_notify(match):
+        return f'LEARNINGS_DIR="{learnings_dir}" {match.group(1)}'
+
+    message = re.sub(pattern3, replace_notify, message)
+
+    # 4. PENDING_DIR - per-agent path
+    # Changes: ~/.openclaw/workspace/.learnings/.pending_notifications -> per-agent path
+    pending_dir = f'{learnings_dir}/.pending_notifications'
     message = message.replace(
-        '"~/.openclaw/workspace/.learnings/.pending_notifications"',
-        pending_dir
+        '.openclaw/workspace/.learnings/.pending_notifications',
+        f'.openclaw/workspace/.learnings/.pending_notifications'.replace(
+            '.openclaw/workspace/.learnings',
+            learnings_dir.replace('~', os.path.expanduser('~'))
+        )
     )
 
     return message
