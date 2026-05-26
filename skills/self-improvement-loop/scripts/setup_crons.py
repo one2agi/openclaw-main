@@ -411,8 +411,8 @@ def create_per_agent_job(agent, payloads, force=False):
     if agent_account:
         job_config['delivery']['accountId'] = agent_account
     if agent_user_id:
-        job_config['delivery']['to'] = agent_user_id
-        modified_msg = modified_msg.replace('<USER_ID>', agent_user_id)
+        job_config['delivery']['to'] = str(agent_user_id)
+        modified_msg = modified_msg.replace('<USER_ID>', str(agent_user_id))
         job_config['payload']['message'] = modified_msg
 
     # Create the job
