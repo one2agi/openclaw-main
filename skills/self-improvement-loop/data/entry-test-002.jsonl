@@ -1,1 +1,0 @@
-{"id": "test-002", "type": "error", "status": "active", "body": "Traceback (most recent call last):\n  File \"test2.py\", line 2\n    raise ValueError(\"test2\")", "pattern_key": "python_traceback", "error_mode": true}
