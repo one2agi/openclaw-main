@@ -225,9 +225,13 @@ def cmd_notify(args):
 def _entry_to_raw_md(e):
     """Render a JSON entry as Markdown for AI analysis."""
     sections = []
+    if e.get('category'):
+        sections.append(f"### Category\n{e.get('category')}")
     sections.append(f"### What Happened\n{e.get('what_happened', '')}")
-    sections.append(f"### Root Cause\n{e.get('root_cause', '')}")
-    sections.append(f"### How To Avoid\n{e.get('how_to_avoid', '')}")
+    if e.get('root_cause'):
+        sections.append(f"### Root Cause\n{e.get('root_cause', '')}")
+    if e.get('how_to_avoid'):
+        sections.append(f"### How To Avoid\n{e.get('how_to_avoid', '')}")
     if e.get('tags'):
         sections.append(f"### Tags\n{', '.join(e.get('tags', []))}")
     if e.get('skill_candidate'):
@@ -254,6 +258,7 @@ def cmd_scan(args):
     for name, group in groups.items():
         count = len(group['entries'])
         first = group['entries'][0]
+        first['raw_md'] = _entry_to_raw_md(first)
         should_notify = (
             count >= args.threshold and
             (not first.get('notified', False) or first.get('notification_count', 0) < count)
