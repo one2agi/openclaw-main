@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""setup_crons.py — self-improvement-loop v4.6.11: --force mode, no interactive prompts."""
+"""setup_crons.py — self-improvement-loop v5.0.0: --force mode, no interactive prompts."""
 import json, subprocess, sys, os, urllib.request, urllib.error, re, datetime, pathlib, argparse
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
