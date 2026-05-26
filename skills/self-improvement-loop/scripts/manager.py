@@ -322,6 +322,32 @@ def cmd_stat(args):
             print(f"  {s}: {count}")
 
 
+def cmd_pending(args):
+    """Manage .pending_notifications/ directory"""
+    pending_dir = os.path.join(LEARNINGS_DIR, '.pending_notifications')
+    os.makedirs(pending_dir, exist_ok=True)
+
+    if args.list:
+        files = sorted(os.listdir(pending_dir))
+        for f in files:
+            print(f)
+        return
+
+    if args.clean:
+        for f in os.listdir(pending_dir):
+            os.remove(os.path.join(pending_dir, f))
+        print(f"Cleaned {pending_dir}")
+        return
+
+    if args.write:
+        pattern_key = args.write
+        content = sys.stdin.read()
+        outfile = os.path.join(pending_dir, f'{pattern_key}.analysis.json')
+        with open(outfile, 'w') as f:
+            f.write(content)
+        print(f"Wrote {outfile}")
+
+
 def main():
     global LEARNINGS_DIR
     parser = argparse.ArgumentParser(prog='manager.py', description='Self-Improvement Loop v5.0.0')
@@ -369,11 +395,17 @@ def main():
 
     p = subparsers.add_parser('stat')
 
+    p = subparsers.add_parser('pending')
+    p.add_argument('--list', action='store_true', help='List pending files')
+    p.add_argument('--clean', action='store_true', help='Clean pending directory')
+    p.add_argument('--write', metavar='PATTERN_KEY', help='Write analysis JSON from stdin')
+
     args = parser.parse_args()
     LEARNINGS_DIR = args.learnings_dir
 
     commands = {'add': cmd_add, 'list': cmd_list, 'get': cmd_get, 'update': cmd_update,
-                'notify': cmd_notify, 'scan': cmd_scan, 'archive': cmd_archive, 'stat': cmd_stat}
+                'notify': cmd_notify, 'scan': cmd_scan, 'archive': cmd_archive, 'stat': cmd_stat,
+                'pending': cmd_pending}
     commands[args.cmd](args)
 
 
